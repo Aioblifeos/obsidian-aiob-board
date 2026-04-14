@@ -1,0 +1,10 @@
+{
+  "id": "aiob-board",
+  "name": "Aiob Board",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "A clean dashboard for Obsidian — banner, progress bars, memo, stats & channels.",
+  "author": "Aiob",
+  "authorUrl": "https://github.com/Aiob",
+  "isDesktopOnly": false
+}

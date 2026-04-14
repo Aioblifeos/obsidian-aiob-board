@@ -1,0 +1,28 @@
+{
+  "name": "aiob-board",
+  "version": "1.0.0",
+  "description": "Aiob Board — A clean dashboard for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "obsidian",
+    "aiob",
+    "dashboard"
+  ],
+  "author": "Aiob",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "builtin-modules": "3.3.0",
+    "esbuild": "0.17.3",
+    "obsidian": "1.12.3",
+    "tslib": "2.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.1"
+  }
+}
