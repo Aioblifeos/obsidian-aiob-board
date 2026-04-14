@@ -4,7 +4,7 @@
 
 本插件为 Aiob LifeOS 插件（未上线）的基础版，以 daily note 为路径写入 Markdown，快速记录碎碎念、待办等，不包括时间轴、洞察、时间追踪、习惯打卡、AI 助手等进阶版功能。
 
-![Aiob Board Screenshot](https://raw.githubusercontent.com/Aioblifeos/aiob-board/main/screenshots/main.png)
+![Aiob Board Screenshot](https://raw.githubusercontent.com/Aioblifeos/obsidian-aiob-board/main/screenshots/main.png)
 
 ## 功能特性
 
