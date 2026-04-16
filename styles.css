@@ -7620,3 +7620,20 @@ input[data-task=L]:checked::after,li[data-task=L]>input:checked::after,li[data-t
 .aiob-dialog-textarea {
 	height: var(--aiob-textarea-height, auto);
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Folder Colorizer — dynamic per-path colors via CSS custom properties
+   ──────────────────────────────────────────────────────────────── */
+.aiob-folder-colored {
+	background-color: var(--aiob-fc-bg, transparent) !important;
+	border-radius: 6px;
+}
+.aiob-folder-colored:hover {
+	background-color: var(--aiob-fc-bg, transparent) !important;
+}
+.aiob-folder-colored > .nav-folder-title-content,
+.aiob-folder-colored > .nav-file-title-content,
+.aiob-folder-colored .aiob-folder-stats {
+	color: var(--aiob-fc-text, inherit) !important;
+	opacity: 1 !important;
+}

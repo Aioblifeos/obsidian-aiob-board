@@ -8,7 +8,6 @@ import { createDialogShell, presentDialogShell, createDialogRow } from '../views
  */
 export class FolderColorizerService {
 	private mutationObserver: MutationObserver | null = null;
-	private styleEl: HTMLStyleElement | null = null;
 	private debouncedApply: () => void;
 
 	constructor(private plugin: AiobPlugin) {
@@ -16,7 +15,7 @@ export class FolderColorizerService {
 	}
 
 	start(): void {
-		this.injectStyleSheet();
+		this.applyColors();
 		this.setupMutationObserver();
 		this.setupFileMenu();
 
@@ -28,8 +27,6 @@ export class FolderColorizerService {
 	destroy(): void {
 		this.mutationObserver?.disconnect();
 		this.mutationObserver = null;
-		this.styleEl?.remove();
-		this.styleEl = null;
 		this.cleanupDOM();
 	}
 
@@ -39,9 +36,40 @@ export class FolderColorizerService {
 
 	// ── Apply colors to DOM ──
 
-	/** Re-generate the stylesheet with color rules — no inline styles needed. */
 	private applyColors(): void {
-		this.injectStyleSheet();
+		const colors = this.plugin.data.config.folderColors || {};
+
+		// Clean up elements that no longer have color config
+		document.querySelectorAll('.aiob-folder-colored').forEach(el => {
+			const path = el.getAttribute('data-path');
+			if (!path || !colors[path]) {
+				el.classList.remove('aiob-folder-colored');
+				(el as HTMLElement).style.removeProperty('--aiob-fc-bg');
+				(el as HTMLElement).style.removeProperty('--aiob-fc-text');
+			}
+		});
+
+		// Apply colors to matching elements
+		for (const [path, cfg] of Object.entries(colors)) {
+			if (!cfg.bg && !cfg.text) continue;
+			const els = document.querySelectorAll(
+				`.nav-folder-title[data-path="${CSS.escape(path)}"], .nav-file-title[data-path="${CSS.escape(path)}"]`,
+			);
+			els.forEach(el => {
+				const htmlEl = el as HTMLElement;
+				htmlEl.classList.add('aiob-folder-colored');
+				if (cfg.bg) {
+					htmlEl.style.setProperty('--aiob-fc-bg', cfg.bg);
+				} else {
+					htmlEl.style.removeProperty('--aiob-fc-bg');
+				}
+				if (cfg.text) {
+					htmlEl.style.setProperty('--aiob-fc-text', cfg.text);
+				} else {
+					htmlEl.style.removeProperty('--aiob-fc-text');
+				}
+			});
+		}
 	}
 
 	// ── Inject into Obsidian's native file-menu ──
@@ -179,41 +207,12 @@ export class FolderColorizerService {
 		});
 	}
 
-	/** Escape a file path for use in a CSS attribute selector. */
-	private cssEscape(s: string): string {
-		return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-	}
-
-	/**
-	 * Build and inject a single <style> that contains both the dialog UI styles
-	 * and per-path color rules. Called on start and whenever colors change.
-	 */
-	private injectStyleSheet(): void {
-		this.styleEl?.remove();
-		const style = document.createElement('style');
-		style.id = 'aiob-folder-colorizer-css';
-
-		// Dynamic per-path color rules — CSS attribute selectors, instant on render
-		let css = '';
-		const colors = this.plugin.data.config.folderColors || {};
-		for (const [path, cfg] of Object.entries(colors)) {
-			const escaped = this.cssEscape(path);
-			const sel = `.nav-folder-title[data-path="${escaped}"], .nav-file-title[data-path="${escaped}"]`;
-			if (cfg.bg) {
-				css += `${sel}, ${sel}:hover { background-color: ${cfg.bg} !important; border-radius: 6px; }\n`;
-			}
-			if (cfg.text) {
-				css += `${sel} > .nav-folder-title-content, ${sel} > .nav-file-title-content, ${sel} .aiob-folder-stats { color: ${cfg.text} !important; opacity: 1 !important; }\n`;
-			}
-		}
-
-		style.textContent = css;
-		document.head.appendChild(style);
-		this.styleEl = style;
-	}
-
 	private cleanupDOM(): void {
-		// All styles are in the <style> tag — just removing it is enough.
+		document.querySelectorAll('.aiob-folder-colored').forEach(el => {
+			el.classList.remove('aiob-folder-colored');
+			(el as HTMLElement).style.removeProperty('--aiob-fc-bg');
+			(el as HTMLElement).style.removeProperty('--aiob-fc-text');
+		});
 	}
 
 	private debounce(func: () => void, wait: number): () => void {
