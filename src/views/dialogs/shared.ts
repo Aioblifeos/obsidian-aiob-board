@@ -73,20 +73,22 @@ export function createDialogSubmitRow(
 	button.createSpan({ cls: 'aiob-dialog-submit-text', text: label });
 
 	let submitting = false;
-	button.addEventListener('click', async () => {
+	button.addEventListener('click', () => {
 		if (submitting) return;
 		submitting = true;
 		button.disabled = true;
 		button.addClass('is-loading');
-		try {
-			await onSubmit();
-		} finally {
-			if (button.isConnected) {
-				submitting = false;
-				button.disabled = false;
-				button.removeClass('is-loading');
+		void (async () => {
+			try {
+				await onSubmit();
+			} finally {
+				if (button.isConnected) {
+					submitting = false;
+					button.disabled = false;
+					button.removeClass('is-loading');
+				}
 			}
-		}
+		})();
 	});
 	return button;
 }

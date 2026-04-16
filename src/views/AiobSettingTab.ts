@@ -1,6 +1,13 @@
 import { App, PluginSettingTab, Setting, AbstractInputSuggest, TFile, TFolder } from 'obsidian';
 import type AiobPlugin from '../main';
-import { getChannelPathSuggestions } from '../utils/channelPaths';
+import { getChannelPathSuggestions, type ChannelPathApp } from '../utils/channelPaths';
+
+/** Obsidian internal API for accessing the built-in templates plugin */
+interface ObsidianInternalPlugins {
+	getPluginById?: (id: string) => {
+		instance?: { options?: { folder?: string } };
+	} | undefined;
+}
 
 // ── Suggest classes ─────────────────────────────────────────
 
@@ -50,7 +57,7 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
 class ChannelPathSuggest extends AbstractInputSuggest<{ value: string; label: string; description: string }> {
 	constructor(app: App, inputEl: HTMLInputElement) { super(app, inputEl); }
 	async getSuggestions(query: string) {
-		return getChannelPathSuggestions(this.app as any, query, 20);
+		return getChannelPathSuggestions(this.app as ChannelPathApp, query, 20);
 	}
 	renderSuggestion(item: { value: string; label: string; description: string }, el: HTMLElement): void {
 		el.createDiv({ text: item.label, cls: 'aiob-suggest-main' });
@@ -131,35 +138,35 @@ export class AiobSettingTab extends PluginSettingTab {
 			.addDropdown(dd => dd
 				.addOption('zh', '中文').addOption('en', 'English')
 				.setValue(this.plugin.data.config.appearance.sectionLanguage ?? 'zh')
-				.onChange(async val => {
+				.onChange(val => { void (async () => {
 					this.plugin.data.config.appearance.sectionLanguage = val as 'zh' | 'en';
 					await this.plugin.saveData(this.plugin.data);
 					this.plugin.requestAiobViewRefresh();
-				}));
+				})(); }));
 
-		const bannerCfg = this.plugin.data.config as any;
+		const bannerCfg = this.plugin.data.config;
 		const hasBanner = !!bannerCfg.bannerImage;
 		const bs = new Setting(containerEl).setName('顶部背景图');
 		bs.addButton(btn => btn.setButtonText(hasBanner ? '更换' : '选择').onClick(() => {
 			const input = document.createElement('input');
 			input.type = 'file'; input.accept = 'image/*';
-			input.addEventListener('change', async () => {
+			input.addEventListener('change', () => { void (async () => {
 				const file = input.files?.[0]; if (!file) return;
 				const ab = await file.arrayBuffer();
 				const ext = file.name.split('.').pop() || 'png';
 				const dp = `_lifeos_banner_${Date.now()}.${ext}`;
-				for (const f of this.app.vault.getFiles()) { if (f.name.startsWith('_lifeos_banner_')) await this.app.vault.delete(f); }
+				for (const f of this.app.vault.getFiles()) { if (f.name.startsWith('_lifeos_banner_')) await this.app.fileManager.trashFile(f); }
 				await this.app.vault.createBinary(dp, ab);
 				bannerCfg.bannerImage = dp; bannerCfg.bannerPosition = { x: 50, y: 50 };
 				await this.plugin.saveData(this.plugin.data);
 				this.plugin.requestAiobViewRefresh(); this.display();
-			});
+			})(); });
 			input.click();
 		}));
-		if (hasBanner) bs.addButton(btn => btn.setButtonText('移除').setWarning().onClick(async () => {
+		if (hasBanner) bs.addButton(btn => btn.setButtonText('移除').setWarning().onClick(() => { void (async () => {
 			bannerCfg.bannerImage = ''; await this.plugin.saveData(this.plugin.data);
 			this.plugin.requestAiobViewRefresh(); this.display();
-		}));
+		})(); }));
 
 		// ════ 常用数据库 ════
 		this.section(containerEl, '常用数据库');
@@ -171,28 +178,28 @@ export class AiobSettingTab extends PluginSettingTab {
 			// Icon (editable)
 			const iconInput = row.createEl('input', { cls: 'aiob-s-ch-icon-input', value: ch.icon });
 			iconInput.maxLength = 4;
-			iconInput.addEventListener('change', async () => { ch.icon = iconInput.value.trim() || '📂'; await this.plugin.saveData(this.plugin.data); });
+			iconInput.addEventListener('change', () => { void (async () => { ch.icon = iconInput.value.trim() || '📂'; await this.plugin.saveData(this.plugin.data); })(); });
 
 			// Name (editable)
 			const nameInput = row.createEl('input', { cls: 'aiob-s-ch-name-input', value: ch.name });
 			nameInput.placeholder = '名称';
-			nameInput.addEventListener('change', async () => { ch.name = nameInput.value.trim() || '未命名'; await this.plugin.saveData(this.plugin.data); });
+			nameInput.addEventListener('change', () => { void (async () => { ch.name = nameInput.value.trim() || '未命名'; await this.plugin.saveData(this.plugin.data); })(); });
 
 			// Path (with suggest)
 			const pathInput = row.createEl('input', { cls: 'aiob-s-ch-path-input', value: ch.path });
 			pathInput.placeholder = '文件夹路径';
-			pathInput.addEventListener('change', async () => { ch.path = pathInput.value.trim(); await this.plugin.saveData(this.plugin.data); });
-			new ChannelPathSuggest(this.app, pathInput).onPick(async (item) => {
+			pathInput.addEventListener('change', () => { void (async () => { ch.path = pathInput.value.trim(); await this.plugin.saveData(this.plugin.data); })(); });
+			new ChannelPathSuggest(this.app, pathInput).onPick((item) => { void (async () => {
 				ch.path = item.value; await this.plugin.saveData(this.plugin.data);
-			});
+			})(); });
 
 			// Delete
 			const del = row.createEl('span', { cls: 'aiob-s-ch-del', text: '\u00d7' });
-			del.addEventListener('click', async () => {
+			del.addEventListener('click', () => { void (async () => {
 				this.plugin.data.config.channels = channels.filter(c => c.id !== ch.id);
 				await this.plugin.saveData(this.plugin.data);
 				this.display();
-			});
+			})(); });
 		}
 
 		// Add row — inline inputs
@@ -229,20 +236,20 @@ export class AiobSettingTab extends PluginSettingTab {
 			.setName('Memos 插入哪个文档')
 			.addText(text => {
 				text.setPlaceholder('daily-note (当天日记)').setValue(memoCfg.targetFile)
-					.onChange(async val => { memoCfg.targetFile = val.trim() || 'daily-note'; await this.plugin.saveData(this.plugin.data); });
-				new TargetFileSuggest(this.app, text.inputEl).onPick(async (v) => {
+					.onChange(val => { void (async () => { memoCfg.targetFile = val.trim() || 'daily-note'; await this.plugin.saveData(this.plugin.data); })(); });
+				new TargetFileSuggest(this.app, text.inputEl).onPick((v) => { void (async () => {
 					memoCfg.targetFile = v || 'daily-note'; await this.plugin.saveData(this.plugin.data);
-				});
+				})(); });
 			});
 
 		new Setting(containerEl)
 			.setName('插入文档的哪个标题块下')
 			.addText(text => {
 				text.setPlaceholder('若无则自动新建').setValue(memoCfg.heading)
-					.onChange(async val => { memoCfg.heading = val.trim() || '## Memos'; await this.plugin.saveData(this.plugin.data); });
-				new HeadingSuggest(this.app, text.inputEl, () => memoCfg.targetFile).onPick(async (h) => {
+					.onChange(val => { void (async () => { memoCfg.heading = val.trim() || '## Memos'; await this.plugin.saveData(this.plugin.data); })(); });
+				new HeadingSuggest(this.app, text.inputEl, () => memoCfg.targetFile).onPick((h) => { void (async () => {
 					memoCfg.heading = h || '## Memos'; await this.plugin.saveData(this.plugin.data);
-				});
+				})(); });
 			});
 
 		const tcs = new Setting(containerEl).setName('时间戳颜色').setClass('aiob-s-color-row');
@@ -255,15 +262,15 @@ export class AiobSettingTab extends PluginSettingTab {
 			const presets = ['accent', '#808080', '#E06C75', '#61AFEF', '#98C379', '#D19A66', '#C678DD'];
 			if (!presets.includes(cur)) dd.addOption(cur, cur);
 			dd.setValue(cur);
-			dd.onChange(async val => {
+			dd.onChange(val => { void (async () => {
 				memoCfg.timestampColor = val; await this.plugin.saveData(this.plugin.data);
 				const p = tcs.settingEl.querySelector('.aiob-s-swatch') as HTMLInputElement;
 				if (p && val.startsWith('#')) p.value = val;
-			});
+			})(); });
 		});
 		const swatch = tcs.controlEl.createEl('input', { type: 'color', cls: 'aiob-s-swatch' });
 		swatch.value = memoCfg.timestampColor.startsWith('#') ? memoCfg.timestampColor : '#808080';
-		swatch.addEventListener('input', async () => {
+		swatch.addEventListener('input', () => { void (async () => {
 			memoCfg.timestampColor = swatch.value; await this.plugin.saveData(this.plugin.data);
 			const dd = tcs.settingEl.querySelector('select') as HTMLSelectElement;
 			if (dd) {
@@ -274,7 +281,7 @@ export class AiobSettingTab extends PluginSettingTab {
 				}
 				dd.value = swatch.value;
 			}
-		});
+		})(); });
 
 		// ════ Todo ════
 		this.section(containerEl, 'Todo');
@@ -284,29 +291,29 @@ export class AiobSettingTab extends PluginSettingTab {
 			.setName('Todo 插入哪个文档')
 			.addText(text => {
 				text.setPlaceholder('daily-note (当天日记)').setValue(todoCfg.targetFile)
-					.onChange(async val => { todoCfg.targetFile = val.trim() || 'daily-note'; await this.plugin.saveData(this.plugin.data); });
-				new TargetFileSuggest(this.app, text.inputEl).onPick(async (v) => {
+					.onChange(val => { void (async () => { todoCfg.targetFile = val.trim() || 'daily-note'; await this.plugin.saveData(this.plugin.data); })(); });
+				new TargetFileSuggest(this.app, text.inputEl).onPick((v) => { void (async () => {
 					todoCfg.targetFile = v || 'daily-note'; await this.plugin.saveData(this.plugin.data);
-				});
+				})(); });
 			});
 
 		new Setting(containerEl)
 			.setName('插入文档的哪个标题块下')
 			.addText(text => {
 				text.setPlaceholder('若无则自动新建').setValue(todoCfg.heading)
-					.onChange(async val => { todoCfg.heading = val.trim() || '## Todo'; await this.plugin.saveData(this.plugin.data); });
-				new HeadingSuggest(this.app, text.inputEl, () => todoCfg.targetFile).onPick(async (h) => {
+					.onChange(val => { void (async () => { todoCfg.heading = val.trim() || '## Todo'; await this.plugin.saveData(this.plugin.data); })(); });
+				new HeadingSuggest(this.app, text.inputEl, () => todoCfg.targetFile).onPick((h) => { void (async () => {
 					todoCfg.heading = h || '## Todo'; await this.plugin.saveData(this.plugin.data);
-				});
+				})(); });
 			});
 
 		new Setting(containerEl)
 			.setName('同步库内任务')
 			.setDesc('扫描其他文档中的 - [ ] 任务')
-			.addToggle(toggle => toggle.setValue(todoCfg.syncFromVault).onChange(async val => {
+			.addToggle(toggle => toggle.setValue(todoCfg.syncFromVault).onChange(val => { void (async () => {
 				todoCfg.syncFromVault = val; await this.plugin.saveData(this.plugin.data);
 				this.plugin.requestAiobViewRefresh(); this.display();
-			}));
+			})(); }));
 
 		if (todoCfg.syncFromVault) {
 			new Setting(containerEl)
@@ -314,10 +321,10 @@ export class AiobSettingTab extends PluginSettingTab {
 				.setDesc('留空 = 整个库')
 				.addText(text => {
 					text.setPlaceholder('/').setValue(todoCfg.syncFolder)
-						.onChange(async val => { todoCfg.syncFolder = val.trim(); await this.plugin.saveData(this.plugin.data); });
-					new FolderSuggest(this.app, text.inputEl).onPick(async (folder) => {
+						.onChange(val => { void (async () => { todoCfg.syncFolder = val.trim(); await this.plugin.saveData(this.plugin.data); })(); });
+					new FolderSuggest(this.app, text.inputEl).onPick((folder) => { void (async () => {
 						todoCfg.syncFolder = folder.path; await this.plugin.saveData(this.plugin.data);
-					});
+					})(); });
 				});
 		}
 
@@ -327,26 +334,26 @@ export class AiobSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('多选属性彩色标签')
 			.setDesc('自动为笔记属性为列表的属性添加背景色')
-			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableFrontmatterColorizer).onChange(async val => {
+			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableFrontmatterColorizer).onChange(val => { void (async () => {
 				this.plugin.data.config.enableFrontmatterColorizer = val; await this.plugin.saveData(this.plugin.data);
 				if (val) this.plugin.frontmatterColorizer.start(); else this.plugin.frontmatterColorizer.destroy();
-			}));
+			})(); }));
 
 		new Setting(containerEl)
 			.setName('文件夹数据统计')
 			.setDesc('在文件浏览器的文件夹名称旁显示文件数与字数')
-			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableFolderStats).onChange(async val => {
+			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableFolderStats).onChange(val => { void (async () => {
 				this.plugin.data.config.enableFolderStats = val; await this.plugin.saveData(this.plugin.data);
 				if (val) this.plugin.folderStatsService.start(); else this.plugin.folderStatsService.destroy();
-			}));
+			})(); }));
 
 		new Setting(containerEl)
 			.setName('文件夹颜色标记')
 			.setDesc('右键文件夹可设置背景色和标题文字颜色')
-			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableFolderColorizer).onChange(async val => {
+			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableFolderColorizer).onChange(val => { void (async () => {
 				this.plugin.data.config.enableFolderColorizer = val; await this.plugin.saveData(this.plugin.data);
 				if (val) this.plugin.folderColorizerService.start(); else this.plugin.folderColorizerService.destroy();
-			}));
+			})(); }));
 
 		new Setting(containerEl)
 			.setName('多状态复选框')
@@ -357,25 +364,25 @@ export class AiobSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('新建文档默认属性')
 			.setDesc('新建 .md 时自动填入模板 frontmatter')
-			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableNewNoteTemplate).onChange(async val => {
+			.addToggle(toggle => toggle.setValue(this.plugin.data.config.enableNewNoteTemplate).onChange(val => { void (async () => {
 				this.plugin.data.config.enableNewNoteTemplate = val; await this.plugin.saveData(this.plugin.data); this.display();
-			}));
+			})(); }));
 
 		if (this.plugin.data.config.enableNewNoteTemplate) {
 			// Get Obsidian's configured templates folder
-			const tplFolder = (this.app.vault as any).config?.templates?.folder
-				|| (this.app as any).internalPlugins?.getPluginById?.('templates')?.instance?.options?.folder
+			const tplFolder = (this.app.vault as { config?: { templates?: { folder?: string } } }).config?.templates?.folder
+				|| (this.app as unknown as { internalPlugins?: ObsidianInternalPlugins }).internalPlugins?.getPluginById?.('templates')?.instance?.options?.folder
 				|| '';
 			new Setting(containerEl)
 				.setName('默认属性模板')
 				.setDesc('支持 {{date}} {{time}} {{title}}' + (tplFolder ? `（从 ${tplFolder}/ 选择）` : ''))
 				.addText(text => {
 					text.setPlaceholder('template/默认模板').setValue(this.plugin.data.config.newNoteTemplatePath)
-						.onChange(async val => { this.plugin.data.config.newNoteTemplatePath = val.trim(); await this.plugin.saveData(this.plugin.data); });
-					new FileSuggest(this.app, text.inputEl, ['md'], tplFolder || undefined).onPick(async (file) => {
+						.onChange(val => { void (async () => { this.plugin.data.config.newNoteTemplatePath = val.trim(); await this.plugin.saveData(this.plugin.data); })(); });
+					new FileSuggest(this.app, text.inputEl, ['md'], tplFolder || undefined).onPick((file) => { void (async () => {
 						this.plugin.data.config.newNoteTemplatePath = file.path.replace(/\.md$/, '');
 						await this.plugin.saveData(this.plugin.data);
-					});
+					})(); });
 				});
 
 			// Exclude folders
@@ -390,12 +397,12 @@ export class AiobSettingTab extends PluginSettingTab {
 				const tag = exContainer.createDiv({ cls: 'aiob-s-exclude-tag' });
 				tag.createSpan({ text: excludes[i] });
 				const rm = tag.createSpan({ cls: 'aiob-s-exclude-rm', text: '\u00d7' });
-				rm.addEventListener('click', async () => {
+				rm.addEventListener('click', () => { void (async () => {
 					excludes.splice(i, 1);
 					this.plugin.data.config.newNoteExcludeFolders = excludes;
 					await this.plugin.saveData(this.plugin.data);
 					this.display();
-				});
+				})(); });
 			}
 			// Add input — always visible so user can keep adding
 			const addExInput = exContainer.createEl('input', { cls: 'aiob-s-exclude-input', placeholder: '+ 添加文件夹' });
@@ -409,9 +416,9 @@ export class AiobSettingTab extends PluginSettingTab {
 					this.display();
 				}
 			};
-			folderSuggest.onPick(async () => { await addExFolder(); });
-			addExInput.addEventListener('keydown', async (e: KeyboardEvent) => {
-				if (e.key === 'Enter') { e.preventDefault(); await addExFolder(); }
+			folderSuggest.onPick(() => { void addExFolder(); });
+			addExInput.addEventListener('keydown', (e: KeyboardEvent) => {
+				if (e.key === 'Enter') { e.preventDefault(); void addExFolder(); }
 			});
 		}
 

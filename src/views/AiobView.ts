@@ -10,6 +10,12 @@ import { SectionFactory } from './sections/SectionFactory';
 import type { SectionRenderContext } from './sections/Section';
 import type { SectionDeps } from './sections/SectionDeps';
 
+/** Obsidian internal APIs not exposed in the public typings. */
+interface AppInternals {
+	commands: { executeCommandById(id: string): void };
+	setting: { open(): void; openTabById(id: string): void };
+}
+
 export const VIEW_TYPE_AIOB = 'aiob-board-view';
 
 const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
@@ -71,7 +77,7 @@ export class AiobView extends ItemView {
 	}
 
 	getViewType() { return VIEW_TYPE_AIOB; }
-	getDisplayText() { return 'Aiob Board'; }
+	getDisplayText() { return 'Aiob board'; }
 	getIcon() { return 'aiob'; }
 	navigation = false;
 
@@ -118,7 +124,7 @@ export class AiobView extends ItemView {
 
 	private renderBanner(parent: HTMLElement) {
 		const banner = parent.createDiv('aiob-banner');
-		const bannerImg = (this.plugin.data.config as any).bannerImage;
+		const bannerImg = this.plugin.data.config.bannerImage;
 		if (bannerImg) {
 			const rp = bannerImg.startsWith('app://') || bannerImg.startsWith('http')
 				? bannerImg
@@ -144,17 +150,19 @@ export class AiobView extends ItemView {
 
 		const lead = row.createDiv('aiob-banner-lead');
 		const vaultName = this.app.vault.getName();
-		const dn = (this.plugin.data.config as any).displayName || vaultName;
+		const dn = this.plugin.data.config.displayName || vaultName;
 		const title = lead.createSpan('aiob-banner-title');
 		title.textContent = dn;
 		const dateEl = lead.createEl('a', {
 			cls: 'aiob-banner-date',
 			text: `${month}月${date}日 · ${weekday}`,
 		});
-		dateEl.addEventListener('click', async (e) => {
+		dateEl.addEventListener('click', (e) => {
 			e.preventDefault();
-			const file = await this.plugin.dailyNoteService.ensureTodayDailyNoteFile();
-			if (file) await this.app.workspace.getLeaf(false).openFile(file);
+			void (async () => {
+				const file = await this.plugin.dailyNoteService.ensureTodayDailyNoteFile();
+				if (file) await this.app.workspace.getLeaf(false).openFile(file);
+			})();
 		});
 		title.addEventListener('click', () => {
 			const inp = document.createElement('input');
@@ -166,7 +174,7 @@ export class AiobView extends ItemView {
 			inp.select();
 			const save = () => {
 				const n = inp.value.trim() || vaultName;
-				(this.plugin.data.config as any).displayName = n;
+				this.plugin.data.config.displayName = n;
 				void this.plugin.saveData(this.plugin.data);
 				inp.replaceWith(title);
 				title.textContent = n;
@@ -183,14 +191,14 @@ export class AiobView extends ItemView {
 		btns.setAttribute('aria-label', '');
 		const themeTargetLabel = () => document.body.classList.contains('theme-dark') ? '浅色' : '深色';
 		const buttons: Array<{ icon: string; label: string | (() => string); color: string; fn: (btn: HTMLElement) => void }> = [
-			{ icon: 'power', label: '重启', color: 'aiob-btn-teal', fn: () => (this.app as any).commands.executeCommandById('app:reload') },
+			{ icon: 'power', label: '重启', color: 'aiob-btn-teal', fn: () => (this.app as unknown as AppInternals).commands.executeCommandById('app:reload') },
 			{ icon: 'sun-moon', label: themeTargetLabel, color: 'aiob-btn-purple', fn: (btn) => {
 				const d = document.body.classList.contains('theme-dark');
 				document.body.classList.toggle('theme-dark', !d);
 				document.body.classList.toggle('theme-light', d);
 				btn.setAttribute('aria-label', themeTargetLabel());
 			} },
-			{ icon: 'settings', label: '设置', color: 'aiob-btn-coral', fn: () => { (this.app as any).setting.open(); (this.app as any).setting.openTabById('aiob'); } },
+			{ icon: 'settings', label: '设置', color: 'aiob-btn-coral', fn: () => { (this.app as unknown as AppInternals).setting.open(); (this.app as unknown as AppInternals).setting.openTabById('aiob'); } },
 		];
 		for (const { icon, label, fn, color } of buttons) {
 			const lbl = typeof label === 'function' ? label() : label;
@@ -207,27 +215,29 @@ export class AiobView extends ItemView {
 			const input = document.createElement('input');
 			input.type = 'file';
 			input.accept = 'image/*';
-			input.addEventListener('change', async () => {
-				const file = input.files?.[0];
-				if (!file) return;
-				try {
-					const ab = await file.arrayBuffer();
-					const ext = file.name.split('.').pop() || 'png';
-					const ts = Date.now();
-					const dp = `_lifeos_banner_${ts}.${ext}`;
-					for (const f of this.app.vault.getFiles()) {
-						if (f.name.startsWith('_lifeos_banner_')) await this.app.vault.delete(f);
+			input.addEventListener('change', () => {
+				void (async () => {
+					const file = input.files?.[0];
+					if (!file) return;
+					try {
+						const ab = await file.arrayBuffer();
+						const ext = file.name.split('.').pop() || 'png';
+						const ts = Date.now();
+						const dp = `_lifeos_banner_${ts}.${ext}`;
+						for (const f of this.app.vault.getFiles()) {
+							if (f.name.startsWith('_lifeos_banner_')) await this.app.vault.delete(f);
+						}
+						await this.app.vault.createBinary(dp, ab);
+						this.plugin.data.config.bannerImage = dp;
+						this.plugin.data.config.bannerPosition = { x: 50, y: 50 };
+						await this.plugin.saveData(this.plugin.data);
+						this.applyBannerImage(banner, this.app.vault.adapter.getResourcePath(dp));
+						new Notice('Banner updated');
+					} catch (err) {
+						new Notice('Upload failed');
+						console.error(err);
 					}
-					await this.app.vault.createBinary(dp, ab);
-					(this.plugin.data.config as any).bannerImage = dp;
-					(this.plugin.data.config as any).bannerPosition = { x: 50, y: 50 };
-					await this.plugin.saveData(this.plugin.data);
-					this.applyBannerImage(banner, this.app.vault.adapter.getResourcePath(dp));
-					new Notice('Banner updated');
-				} catch (err) {
-					new Notice('Upload failed');
-					console.error(err);
-				}
+				})();
 			});
 			input.click();
 		}));
@@ -236,8 +246,8 @@ export class AiobView extends ItemView {
 			showTextInputDialog('输入 Vault 内图片路径', '', (path) => {
 				const file = this.app.vault.getAbstractFileByPath(path);
 				if (file instanceof TFile) {
-					(this.plugin.data.config as any).bannerImage = path;
-					(this.plugin.data.config as any).bannerPosition = { x: 50, y: 50 };
+					this.plugin.data.config.bannerImage = path;
+					this.plugin.data.config.bannerPosition = { x: 50, y: 50 };
 					void this.plugin.saveData(this.plugin.data);
 					this.applyBannerImage(banner, this.app.vault.adapter.getResourcePath(path));
 					new Notice('Banner updated');
@@ -249,13 +259,11 @@ export class AiobView extends ItemView {
 
 		menu.addSeparator();
 		menu.addItem(i => i.setTitle('恢复默认背景').setIcon('rotate-ccw').onClick(async () => {
-			(this.plugin.data.config as any).bannerImage = '';
-			(this.plugin.data.config as any).bannerPosition = { x: 50, y: 50 };
+			this.plugin.data.config.bannerImage = '';
+			this.plugin.data.config.bannerPosition = { x: 50, y: 50 };
 			await this.plugin.saveData(this.plugin.data);
-			banner.style.removeProperty('background-image');
-			banner.style.removeProperty('background');
-			banner.style.removeProperty('background-size');
-			banner.style.removeProperty('background-position');
+			banner.style.removeProperty('--aiob-banner-bg');
+			banner.style.removeProperty('--aiob-banner-pos');
 			banner.classList.remove('has-image');
 			new Notice('Reset to default');
 		}));
@@ -267,10 +275,9 @@ export class AiobView extends ItemView {
 	}
 
 	private applyBannerImage(banner: HTMLElement, url: string) {
-		const pos = (this.plugin.data.config as any).bannerPosition || { x: 50, y: 50 };
-		banner.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.4)),url('${url}')`;
-		banner.style.backgroundSize = 'cover';
-		banner.style.backgroundPosition = `${pos.x}% ${pos.y}%`;
+		const pos = this.plugin.data.config.bannerPosition || { x: 50, y: 50 };
+		banner.style.setProperty('--aiob-banner-bg', `linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.4)),url('${url}')`);
+		banner.style.setProperty('--aiob-banner-pos', `${pos.x}% ${pos.y}%`);
 		banner.classList.add('has-image');
 		banner.removeAttribute('aria-label');
 	}
@@ -293,7 +300,7 @@ export class AiobView extends ItemView {
 			if (e.button !== 0 && e.pointerType === 'mouse') return;
 			const target = e.target as HTMLElement | null;
 			if (target && target.closest('.aiob-banner-title, .aiob-banner-date, .aiob-banner-btn, .aiob-title-input')) return;
-			const cfgPos = (this.plugin.data.config as any).bannerPosition || { x: 50, y: 50 };
+			const cfgPos = this.plugin.data.config.bannerPosition || { x: 50, y: 50 };
 			startBgX = cfgPos.x;
 			startBgY = cfgPos.y;
 			pendingX = cfgPos.x;
@@ -302,7 +309,7 @@ export class AiobView extends ItemView {
 			startY = e.clientY;
 			dragging = true;
 			moved = false;
-			try { banner.setPointerCapture(e.pointerId); } catch {}
+			try { banner.setPointerCapture(e.pointerId); } catch { /* no-op */ }
 			banner.classList.add('is-dragging');
 		});
 
@@ -317,17 +324,17 @@ export class AiobView extends ItemView {
 			const ny = Math.max(0, Math.min(100, startBgY - (dy / rect.height) * 100));
 			pendingX = nx;
 			pendingY = ny;
-			banner.style.backgroundPosition = `${nx}% ${ny}%`;
+			banner.style.setProperty('--aiob-banner-pos', `${nx}% ${ny}%`);
 		});
 
-		const finish = async (e: PointerEvent) => {
+		const finish = (e: PointerEvent) => {
 			if (!dragging) return;
 			dragging = false;
-			try { banner.releasePointerCapture(e.pointerId); } catch {}
+			try { banner.releasePointerCapture(e.pointerId); } catch { /* no-op */ }
 			banner.classList.remove('is-dragging');
 			if (moved) {
-				(this.plugin.data.config as any).bannerPosition = { x: pendingX, y: pendingY };
-				await this.plugin.saveData(this.plugin.data);
+				this.plugin.data.config.bannerPosition = { x: pendingX, y: pendingY };
+				void this.plugin.saveData(this.plugin.data);
 				banner.addEventListener('click', suppressClick, true);
 			}
 		};
@@ -339,19 +346,19 @@ export class AiobView extends ItemView {
 		const row1 = sec.createDiv('aiob-sb-row1');
 		const title = row1.createSpan({ cls: 'aiob-sb-title' });
 		const vaultName = this.app.vault.getName();
-		const dn = (this.plugin.data.config as any).displayName || vaultName;
+		const dn = this.plugin.data.config.displayName || vaultName;
 		title.textContent = dn;
 		title.addEventListener('click', () => {
 			const inp = document.createElement('input');
 			inp.type = 'text';
-			inp.value = (this.plugin.data.config as any).displayName || vaultName;
+			inp.value = this.plugin.data.config.displayName || vaultName;
 			inp.className = 'aiob-title-input aiob-sb-title-input';
 			title.replaceWith(inp);
 			inp.focus();
 			inp.select();
 			const save = () => {
 				const n = inp.value.trim() || vaultName;
-				(this.plugin.data.config as any).displayName = n;
+				this.plugin.data.config.displayName = n;
 				void this.plugin.saveData(this.plugin.data);
 				inp.replaceWith(title);
 				title.textContent = n;
@@ -364,9 +371,9 @@ export class AiobView extends ItemView {
 		});
 		const btns = row1.createDiv('aiob-sb-actions');
 		for (const { icon, label, fn, color } of [
-			{ icon: 'power', label: '重启', color: 'aiob-btn-teal', fn: () => (this.app as any).commands.executeCommandById('app:reload') },
+			{ icon: 'power', label: '重启', color: 'aiob-btn-teal', fn: () => (this.app as unknown as AppInternals).commands.executeCommandById('app:reload') },
 			{ icon: 'sun-moon', label: '主题', color: 'aiob-btn-purple', fn: () => { const d = document.body.classList.contains('theme-dark'); document.body.classList.toggle('theme-dark', !d); document.body.classList.toggle('theme-light', d); } },
-			{ icon: 'settings', label: '设置', color: 'aiob-btn-coral', fn: () => { (this.app as any).setting.open(); (this.app as any).setting.openTabById('aiob'); } },
+			{ icon: 'settings', label: '设置', color: 'aiob-btn-coral', fn: () => { (this.app as unknown as AppInternals).setting.open(); (this.app as unknown as AppInternals).setting.openTabById('aiob'); } },
 		]) {
 			const b = btns.createEl('button', { cls: `aiob-banner-btn aiob-sb-btn ${color}`, attr: { 'aria-label': label } });
 			renderIcon(b, icon);

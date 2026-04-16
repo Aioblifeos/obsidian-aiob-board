@@ -42,11 +42,14 @@ const KQTTSB = legacyKey('qttsb');
 /** 磁盘上的原始数据格式（加载时尚未迁移） */
 interface RawSavedData {
 	schemaVersion?: number;
-	config?: Record<string, any>;
-	log?: any[];
+	config?: Record<string, unknown>;
+	log?: unknown[];
 	/** v2 迁移标志：data.json 中残留的 log 需要被导入到分片文件 */
 	_pendingLogExport?: boolean;
 }
+
+/** 迁移函数内部使用的 config 类型——migration 需要自由读写任意键 */
+type MigrationConfig = Record<string, unknown>;
 
 /** 迁移函数签名 */
 type MigrationFn = (data: RawSavedData) => void;
@@ -108,15 +111,15 @@ const MIGRATIONS: MigrationFn[] = [
 	migrateV24ToV25,
 	// ── v25 → v26: reorder layout — channels before memo ──
 	(data: RawSavedData) => {
-		const config = data.config!;
-		const layout = config.layout;
+		const config = data.config! as MigrationConfig;
+		const layout = config.layout as Record<string, unknown> | undefined;
 		if (!layout?.sections || !Array.isArray(layout.sections)) return;
-		const sections: any[] = layout.sections;
-		const chIdx = sections.findIndex((s: any) => s.id === 'channels');
-		const memoIdx = sections.findIndex((s: any) => s.id === 'memo');
+		const sections = layout.sections as Array<Record<string, unknown>>;
+		const chIdx = sections.findIndex((s) => s.id === 'channels');
+		const memoIdx = sections.findIndex((s) => s.id === 'memo');
 		if (chIdx > memoIdx && memoIdx >= 0) {
 			const [ch] = sections.splice(chIdx, 1);
-			const newMemoIdx = sections.findIndex((s: any) => s.id === 'memo');
+			const newMemoIdx = sections.findIndex((s) => s.id === 'memo');
 			sections.splice(newMemoIdx, 0, ch);
 		}
 	},
@@ -127,10 +130,11 @@ const MIGRATIONS: MigrationFn[] = [
  * 如果 data 为 null/undefined，返回空壳。
  */
 export function runMigrations(data: RawSavedData | null): RawSavedData & { schemaVersion: number } {
-	if (!data) {
-		data = {};
+	if (!data || (data.schemaVersion == null && !data.config)) {
+		// Brand new vault — skip all migrations, use current defaults
+		return { schemaVersion: MIGRATIONS.length, config: {}, log: [] };
 	}
-	if (!data.config) data.config = {};
+	if (!data.config) data.config = {} as MigrationConfig;
 	if (!Array.isArray(data.log)) data.log = [];
 
 	let version = typeof data.schemaVersion === 'number' ? data.schemaVersion : 0;
@@ -160,7 +164,7 @@ export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length;
 // ============================================================
 
 function migrateV0ToV1(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 
 	// ── 1. checkIn → tracker 重命名 ──
 	if (!config[KTG] && Array.isArray(config[KCIG])) {
@@ -175,11 +179,15 @@ function migrateV0ToV1(data: RawSavedData): void {
 	// ── 2. 日志类型迁移 ──
 	if (Array.isArray(data.log)) {
 		data.log = data.log
-			.map((entry: any) => {
-				if (entry.type === 'checkin') return { ...entry, type: 'tracker' };
-				return entry;
+			.map((entry: unknown) => {
+				const e = entry as Record<string, unknown>;
+				if (e.type === 'checkin') return { ...e, type: 'tracker' };
+				return e;
 			})
-			.filter((entry: any) => !['habit', 'routine', 'sleep'].includes(entry.type));
+			.filter((entry: unknown) => {
+				const e = entry as Record<string, unknown>;
+				return !['habit', 'routine', 'sleep'].includes(e.type as string);
+			});
 	}
 
 	// ── 3. 删除废弃的 habits / routines ──
@@ -187,21 +195,25 @@ function migrateV0ToV1(data: RawSavedData): void {
 	delete config.routines;
 
 	// ── 4. 确保 trackerGroups / trackerItems 存在 ──
-	if (!Array.isArray(config[KTG]) || config[KTG].length === 0) {
-		config[KTG] = (DEFAULT_CONFIG as any)[KTG].map((g: any) => ({ ...g }));
+	if (!Array.isArray(config[KTG]) || (config[KTG] as unknown[]).length === 0) {
+		const defaults = (DEFAULT_CONFIG as MigrationConfig)[KTG] as unknown[];
+		config[KTG] = defaults.map((g) => ({ ...(g as Record<string, unknown>) }));
 	}
-	if (!Array.isArray(config[KTI]) || config[KTI].length === 0) {
-		config[KTI] = (DEFAULT_CONFIG as any)[KTI].map((i: any) => ({ ...i }));
+	if (!Array.isArray(config[KTI]) || (config[KTI] as unknown[]).length === 0) {
+		const defaults = (DEFAULT_CONFIG as MigrationConfig)[KTI] as unknown[];
+		config[KTI] = defaults.map((i) => ({ ...(i as Record<string, unknown>) }));
 	}
 	// 保障必要分组
-	if (!config[KTG].some((g: any) => g.id === 'daily-data')) {
-		config[KTG].push({ id: 'daily-data', name: 'Daily Data' });
+	const groups = config[KTG] as Array<Record<string, unknown>>;
+	if (!groups.some((g) => g.id === 'daily-data')) {
+		groups.push({ id: 'daily-data', name: 'Daily Data' });
 	}
-	if (!config[KTG].some((g: any) => g.id === 'ungrouped')) {
-		config[KTG].push({ id: 'ungrouped', name: '未分组' });
+	if (!groups.some((g) => g.id === 'ungrouped')) {
+		groups.push({ id: 'ungrouped', name: '未分组' });
 	}
 	// trackerItems 字段规范化
-	for (const item of config[KTI] || []) {
+	const trackerItems = (Array.isArray(config[KTI]) ? config[KTI] : []) as Array<Record<string, unknown>>;
+	for (const item of trackerItems) {
 		if (item.sourceKind !== 'daily-data') {
 			item.sourceKind = 'custom';
 			item.sourceId = item.id;
@@ -231,50 +243,53 @@ function migrateV0ToV1(data: RawSavedData): void {
 
 // ── 辅助：各子项配置保障 ──
 
-function ensureChannelConfig(config: Record<string, any>): void {
+function ensureChannelConfig(config: MigrationConfig): void {
 	const channelIds = new Set(
-		(Array.isArray(config.channels) ? config.channels : [])
-			.map((entry: any) => String(entry?.id ?? '').trim())
+		(Array.isArray(config.channels) ? (config.channels as unknown[]) : [])
+			.map((entry: unknown) => String((entry as Record<string, unknown>)?.id ?? '').trim())
 			.filter(Boolean),
 	);
 	config.channelCoreIds = Array.isArray(config.channelCoreIds)
-		? [...new Set(config.channelCoreIds.map((id: any) => String(id ?? '').trim()).filter((id: string) => !!id && channelIds.has(id)))]
+		? [...new Set((config.channelCoreIds as unknown[]).map((id: unknown) => String(id ?? '').trim()).filter((id: string) => !!id && channelIds.has(id)))]
 		: DEFAULT_CONFIG.channelCoreIds.filter((id) => channelIds.has(id));
 }
 
-function ensureRecordTypeConfig(config: Record<string, any>): void {
+function ensureRecordTypeConfig(config: MigrationConfig): void {
+	const defaultRTs = (DEFAULT_CONFIG as MigrationConfig)[KRT] as Array<Record<string, unknown>>;
 	if (!Array.isArray(config[KRT])) {
-		config[KRT] = (DEFAULT_CONFIG as any)[KRT].map((type: any) => ({ ...type }));
+		config[KRT] = defaultRTs.map((type) => ({ ...type }));
 		return;
 	}
-	for (const type of config[KRT]) {
-		const defaultType = (DEFAULT_CONFIG as any)[KRT].find((entry: any) => entry.id === type.id);
+	for (const type of config[KRT] as Array<Record<string, unknown>>) {
+		const defaultType = defaultRTs.find((entry) => entry.id === type.id);
 		if (defaultType) {
 			if (defaultType.mode === 'note') {
 				if (!type.templatePath) type.templatePath = defaultType.templatePath;
 				if (!type.filenameTemplate) type.filenameTemplate = defaultType.filenameTemplate;
-				const mainField = Array.isArray(type.fields)
-					? type.fields.find((f: any) => ['title', 'name'].includes(f.key))
-						|| type.fields.find((f: any) => f.required && (f.type === 'text' || f.type === 'textarea'))
-						|| type.fields.find((f: any) => f.type === 'text' || f.type === 'textarea')
+				const fields = type.fields as Array<Record<string, unknown>> | undefined;
+				const mainField = Array.isArray(fields)
+					? fields.find((f) => ['title', 'name'].includes(f.key as string))
+						|| fields.find((f) => f.required && (f.type === 'text' || f.type === 'textarea'))
+						|| fields.find((f) => f.type === 'text' || f.type === 'textarea')
 					: null;
 				if (mainField?.key && defaultType.id !== 'capture' && defaultType.id !== 'process') {
-					type.filenameTemplate = `{${mainField.key}}`;
+					type.filenameTemplate = `{${mainField.key as string}}`;
 				}
-				if (!Array.isArray(type.fieldMap) || !type.fieldMap.length) {
-					type.fieldMap = defaultType.fieldMap?.map((entry: any) => ({ ...entry }));
+				if (!Array.isArray(type.fieldMap) || !(type.fieldMap as unknown[]).length) {
+					const defaultFieldMap = defaultType.fieldMap as Array<Record<string, unknown>> | undefined;
+					type.fieldMap = defaultFieldMap?.map((entry) => ({ ...entry }));
 				}
 			}
 		}
 		delete type.folder;
 		if (!Array.isArray(type.fields)) continue;
 		// 移除废弃字段
-		type.fields = type.fields.filter((f: any) => f.key !== 'time' && f.key !== 'repeat' && f.key !== 'notes' && f.type !== 'repeat-rule' && f.type !== 'time-picker' && f.type !== 'time');
+		type.fields = (type.fields as Array<Record<string, unknown>>).filter((f) => f.key !== 'time' && f.key !== 'repeat' && f.key !== 'notes' && f.type !== 'repeat-rule' && f.type !== 'time-picker' && f.type !== 'time');
 		if (Array.isArray(type.fieldMap)) {
-			type.fieldMap = type.fieldMap.filter((entry: any) => !['time', 'repeat', 'notes'].includes(entry.field));
+			type.fieldMap = (type.fieldMap as Array<Record<string, unknown>>).filter((entry) => !['time', 'repeat', 'notes'].includes(entry.field as string));
 		}
 		// 语义字段规范化
-		for (const field of type.fields) {
+		for (const field of type.fields as Array<Record<string, unknown>>) {
 			if (field.key === 'status') {
 				field.type = 'multi-select';
 				field.default = field.default || 'todo';
@@ -304,13 +319,13 @@ function ensureRecordTypeConfig(config: Record<string, any>): void {
 	}
 }
 
-function ensureDailyNoteConfig(config: Record<string, any>): void {
-	const current = config.dailyNote && typeof config.dailyNote === 'object' ? config.dailyNote : {};
+function ensureDailyNoteConfig(config: MigrationConfig): void {
+	const current = (config.dailyNote && typeof config.dailyNote === 'object' ? config.dailyNote : {}) as Record<string, unknown>;
 	const defaultSections = Array.isArray(DEFAULT_CONFIG.dailyNote.sections)
 		? [...DEFAULT_CONFIG.dailyNote.sections]
 		: ['todo', 'notes', 'timeline', 'review'];
 	const savedSections = Array.isArray(current.sections)
-		? current.sections.map((v: any) => String(v ?? '').trim()).filter(Boolean)
+		? (current.sections as unknown[]).map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
 		: [];
 	const sectionSeen = new Set<string>();
 	const sections = [...savedSections, ...defaultSections]
@@ -320,8 +335,9 @@ function ensureDailyNoteConfig(config: Record<string, any>): void {
 		...current,
 		sections,
 	};
-	if (!config.dailyNote.templatePath || config.dailyNote.templatePath === 'Archive/Templates/日记模板1.md') {
-		config.dailyNote.templatePath = 'Archive/Templates/日记模板.md';
+	const dailyNote = config.dailyNote as Record<string, unknown>;
+	if (!dailyNote.templatePath || dailyNote.templatePath === 'Archive/Templates/日记模板1.md') {
+		dailyNote.templatePath = 'Archive/Templates/日记模板.md';
 	}
 }
 
@@ -346,22 +362,23 @@ const PRIORITY_MIGRATION_MAP: Record<string, string> = {
 function migrateV2ToV3(data: RawSavedData): void {
 	// 迁移日志条目中的 priority 值
 	if (Array.isArray(data.log)) {
-		for (const entry of data.log) {
-			if (entry.priority && PRIORITY_MIGRATION_MAP[entry.priority]) {
-				entry.priority = PRIORITY_MIGRATION_MAP[entry.priority];
+		for (const entry of data.log as Array<Record<string, unknown>>) {
+			const p = entry.priority as string | undefined;
+			if (p && PRIORITY_MIGRATION_MAP[p]) {
+				entry.priority = PRIORITY_MIGRATION_MAP[p];
 			}
 		}
 	}
 
 	// 迁移 recordTypes 配置中的 priority default 和 presets
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	if (Array.isArray(config[KRT])) {
-		for (const type of config[KRT]) {
+		for (const type of config[KRT] as Array<Record<string, unknown>>) {
 			if (!Array.isArray(type.fields)) continue;
-			for (const field of type.fields) {
+			for (const field of type.fields as Array<Record<string, unknown>>) {
 				if (field.key !== 'priority') continue;
-				if (field.default && PRIORITY_MIGRATION_MAP[field.default]) {
-					field.default = PRIORITY_MIGRATION_MAP[field.default];
+				if (field.default && PRIORITY_MIGRATION_MAP[field.default as string]) {
+					field.default = PRIORITY_MIGRATION_MAP[field.default as string];
 				}
 				field.presets = ['P0', 'P1', 'P2', 'P3', 'none'];
 			}
@@ -370,61 +387,61 @@ function migrateV2ToV3(data: RawSavedData): void {
 }
 
 function migrateV3ToV4(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureTodayConfig(config);
 }
 
 function migrateV4ToV5(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureTodayConfig(config);
 }
 
 function migrateV5ToV6(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureTodayConfig(config);
 }
 
 function migrateV6ToV7(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureRecordSectionTitleVisibility(config);
 }
 
 function migrateV7ToV8(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureWidgetOrders(config);
 }
 
 function migrateV8ToV9(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureWidgetVisibilities(config);
 }
 
 function migrateV9ToV10(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureBoardWidgetTitleVisibility(config);
 }
 
 function migrateV10ToV11(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureTodayConfig(config);
 }
 
 function migrateV11ToV12(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureTodayConfig(config);
 }
 
 function migrateV12ToV13(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	ensureRecordTypeConfig(config);
 }
 
 function migrateV13ToV14(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 
 	// Build sectionVisibility from old record/board widget visibility
-	const rv = config[KRWV] || {};
-	const bv = config[KBWV] || {};
+	const rv = (config[KRWV] || {}) as Record<string, unknown>;
+	const bv = (config[KBWV] || {}) as Record<string, unknown>;
 	config.sectionVisibility = {
 		...DEFAULT_SECTION_VISIBILITY,
 		focus: rv.focus ?? true,
@@ -438,8 +455,8 @@ function migrateV13ToV14(data: RawSavedData): void {
 	};
 
 	// Build sectionTitleVisibility from old title configs
-	const rtv = config[KRSTV] || {};
-	const btv = config[KBWTV] || {};
+	const rtv = (config[KRSTV] || {}) as Record<string, unknown>;
+	const btv = (config[KBWTV] || {}) as Record<string, unknown>;
 	config.sectionTitleVisibility = {
 		...DEFAULT_SECTION_TITLE_VISIBILITY,
 		focus: rtv.focus ?? false,
@@ -451,9 +468,9 @@ function migrateV13ToV14(data: RawSavedData): void {
 
 	// Build layout from old widget orders
 	const rOrder: string[] = Array.isArray(config[KRWO])
-		? config[KRWO] : ['focus', 'tracker', 'memo', KQT];
+		? config[KRWO] as string[] : ['focus', 'tracker', 'memo', KQT];
 	const bOrder: string[] = Array.isArray(config[KBWO])
-		? config[KBWO] : ['progress', 'channels', 'today'];
+		? config[KBWO] as string[] : ['progress', 'channels', 'today'];
 
 	// Sidebar-only sections — these don't belong on the home surface
 	const sidebarOnly = new Set(['tracker', 'memo', KQT, 'channels', 'sidebarStats']);
@@ -478,12 +495,12 @@ function migrateV13ToV14(data: RawSavedData): void {
 		timeline: { sections: ['calendar'] },
 		insight: { sections: [KDR, KHH, KAD] },
 		sidebar: { sections: ['sidebarStats', KQT, 'tracker', 'memo', 'channels'] },
-	} as any;
+	} as Record<string, unknown>;
 }
 
-function ensureTodayFocusLabels(raw: any): Record<string, string> {
-	const current = raw && typeof raw === 'object' ? raw : {};
-	const defaults = (DEFAULT_CONFIG.today as any).focusLabels;
+function ensureTodayFocusLabels(raw: unknown): Record<string, string> {
+	const current = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+	const defaults = DEFAULT_CONFIG.today.focusLabels as Record<string, string>;
 	return {
 		expectation: typeof current.expectation === 'string' && current.expectation.trim()
 			? current.expectation.trim()
@@ -500,9 +517,9 @@ function ensureTodayFocusLabels(raw: any): Record<string, string> {
 	};
 }
 
-function ensureTodayFocusRowVisibility(raw: any): Record<string, boolean> {
-	const current = raw && typeof raw === 'object' ? raw : {};
-	const defaults = (DEFAULT_CONFIG.today as any).focusRowVisibility;
+function ensureTodayFocusRowVisibility(raw: unknown): Record<string, boolean> {
+	const current = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+	const defaults = DEFAULT_CONFIG.today.focusRowVisibility as Record<string, boolean>;
 	return {
 		expectation: typeof current.expectation === 'boolean' ? current.expectation : defaults.expectation,
 		primary: typeof current.primary === 'boolean' ? current.primary : defaults.primary,
@@ -511,13 +528,13 @@ function ensureTodayFocusRowVisibility(raw: any): Record<string, boolean> {
 	};
 }
 
-function ensureTodayConfig(config: Record<string, any>): void {
-	const current = config.today && typeof config.today === 'object' ? config.today : {};
+function ensureTodayConfig(config: MigrationConfig): void {
+	const current = (config.today && typeof config.today === 'object' ? config.today : {}) as Record<string, unknown>;
 	const defaultOverviewOrder = Array.isArray(DEFAULT_CONFIG.today.overviewOrder)
 		? [...DEFAULT_CONFIG.today.overviewOrder]
 		: ['timeline', 'notes', 'capture', 'todo', 'tracker', 'tasks'];
 	const savedOverviewOrder = Array.isArray(current.overviewOrder)
-		? current.overviewOrder.map((v: any) => String(v ?? '').trim()).filter(Boolean)
+		? (current.overviewOrder as unknown[]).map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
 		: [];
 	const overviewSeen = new Set<string>();
 	const overviewOrder = [...savedOverviewOrder, ...defaultOverviewOrder]
@@ -554,10 +571,10 @@ function ensureTodayConfig(config: Record<string, any>): void {
 	};
 }
 
-function ensureRecordSectionTitleVisibility(config: Record<string, any>): void {
-	const current = config[KRSTV] && typeof config[KRSTV] === 'object'
+function ensureRecordSectionTitleVisibility(config: MigrationConfig): void {
+	const current = (config[KRSTV] && typeof config[KRSTV] === 'object'
 		? config[KRSTV]
-		: {};
+		: {}) as Record<string, unknown>;
 	// Historical default (inlined — this legacy field no longer exists in AiobConfig).
 	config[KRSTV] = {
 		focus: typeof current.focus === 'boolean' ? current.focus : false,
@@ -568,9 +585,9 @@ function ensureRecordSectionTitleVisibility(config: Record<string, any>): void {
 	};
 }
 
-function ensureOrderedWidgetIds<T extends string>(raw: any, defaults: readonly T[]): T[] {
+function ensureOrderedWidgetIds<T extends string>(raw: unknown, defaults: readonly T[]): T[] {
 	const saved = Array.isArray(raw)
-		? raw.map((value: any) => String(value ?? '').trim()).filter(Boolean)
+		? (raw as unknown[]).map((value: unknown) => String(value ?? '').trim()).filter(Boolean)
 		: [];
 	const seen = new Set<string>();
 	return [...saved, ...defaults]
@@ -581,7 +598,7 @@ function ensureOrderedWidgetIds<T extends string>(raw: any, defaults: readonly T
 		});
 }
 
-function ensureWidgetOrders(config: Record<string, any>): void {
+function ensureWidgetOrders(config: MigrationConfig): void {
 	config[KRWO] = ensureOrderedWidgetIds(
 		config[KRWO],
 		['focus', 'tracker', 'memo', KQT] as const,
@@ -592,10 +609,10 @@ function ensureWidgetOrders(config: Record<string, any>): void {
 	);
 }
 
-function ensureRecordWidgetVisibility(config: Record<string, any>): void {
-	const current = config[KRWV] && typeof config[KRWV] === 'object'
+function ensureRecordWidgetVisibility(config: MigrationConfig): void {
+	const current = (config[KRWV] && typeof config[KRWV] === 'object'
 		? config[KRWV]
-		: {};
+		: {}) as Record<string, unknown>;
 	config[KRWV] = {
 		focus: typeof current.focus === 'boolean' ? current.focus : true,
 		tracker: typeof current.tracker === 'boolean' ? current.tracker : true,
@@ -604,10 +621,10 @@ function ensureRecordWidgetVisibility(config: Record<string, any>): void {
 	};
 }
 
-function ensureBoardWidgetVisibility(config: Record<string, any>): void {
-	const current = config[KBWV] && typeof config[KBWV] === 'object'
+function ensureBoardWidgetVisibility(config: MigrationConfig): void {
+	const current = (config[KBWV] && typeof config[KBWV] === 'object'
 		? config[KBWV]
-		: {};
+		: {}) as Record<string, unknown>;
 	config[KBWV] = {
 		progress: typeof current.progress === 'boolean' ? current.progress : true,
 		channels: typeof current.channels === 'boolean' ? current.channels : true,
@@ -615,28 +632,31 @@ function ensureBoardWidgetVisibility(config: Record<string, any>): void {
 	};
 }
 
-function ensureWidgetVisibilities(config: Record<string, any>): void {
+function ensureWidgetVisibilities(config: MigrationConfig): void {
 	ensureRecordWidgetVisibility(config);
 	ensureBoardWidgetVisibility(config);
 }
 
 // ── v14 → v15 ──────────────────────────────────────────────
 function migrateV14ToV15(data: RawSavedData): void {
-	const config = data.config!;
-	const layout = config.layout;
-	if (!layout?.home?.sections) return;
+	const config = data.config! as MigrationConfig;
+	const layout = config.layout as Record<string, unknown> | undefined;
+	const home = layout?.home as Record<string, unknown> | undefined;
+	if (!home?.sections) return;
 
 	// These sections belong in the sidebar only
 	const sidebarOnly = new Set(['tracker', 'memo', KQT, 'channels', 'sidebarStats']);
-	layout.home.sections = (layout.home.sections as string[]).filter(
+	home.sections = (home.sections as string[]).filter(
 		(id: string) => !sidebarOnly.has(id),
 	);
 }
 
 // ── v15 → v16 ──────────────────────────────────────────────
 function migrateV15ToV16(data: RawSavedData): void {
-	const config = data.config!;
-	const sections: string[] | undefined = config.layout?.home?.sections;
+	const config = data.config! as MigrationConfig;
+	const layout = config.layout as Record<string, unknown> | undefined;
+	const home = layout?.home as Record<string, unknown> | undefined;
+	const sections: string[] | undefined = home?.sections as string[] | undefined;
 	if (!sections) return;
 
 	const focusIdx = sections.indexOf('focus');
@@ -652,43 +672,46 @@ function migrateV15ToV16(data: RawSavedData): void {
 
 // ── v16 → v17 ──────────────────────────────────────────────
 function migrateV16ToV17(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	if (!config.appearance) config.appearance = {};
-	if (!config.appearance.sectionLanguage) {
-		config.appearance.sectionLanguage = 'zh';
+	const appearance = config.appearance as Record<string, unknown>;
+	if (!appearance.sectionLanguage) {
+		appearance.sectionLanguage = 'zh';
 	}
 }
 
 // ── v17 → v18 ──────────────────────────────────────────────
 function migrateV17ToV18(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 
 	// 1. sectionVisibility: ensure dayInsight key exists
 	if (!config.sectionVisibility || typeof config.sectionVisibility !== 'object') {
 		config.sectionVisibility = { ...DEFAULT_SECTION_VISIBILITY };
 	}
-	if (typeof config.sectionVisibility[KDI] !== 'boolean') {
-		config.sectionVisibility[KDI] = true;
+	const sectionVisibility = config.sectionVisibility as Record<string, unknown>;
+	if (typeof sectionVisibility[KDI] !== 'boolean') {
+		sectionVisibility[KDI] = true;
 	}
 
 	// 2. layout.insight: prepend dayInsight if missing.
 	// At v18 time, layout still had the 4-surface shape (pre-v22 flattening).
-	const layout: any = config.layout || (config.layout = {});
+	const layout = (config.layout || (config.layout = {})) as Record<string, unknown>;
 	if (!layout.insight) {
 		layout.insight = { sections: [KDR, KHH, KAD] };
 	}
-	const insightSections: string[] = Array.isArray(layout.insight.sections)
-		? layout.insight.sections
+	const insight = layout.insight as Record<string, unknown>;
+	const insightSections: string[] = Array.isArray(insight.sections)
+		? insight.sections as string[]
 		: [];
 	if (!insightSections.includes(KDI)) {
 		insightSections.unshift(KDI);
-		layout.insight.sections = insightSections;
+		insight.sections = insightSections;
 	}
 }
 
 // ── v18 → v19 ──────────────────────────────────────────────
 function migrateV18ToV19(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 
 	// 1. Seed config.areas if missing.
 	if (!Array.isArray(config.areas) || config.areas.length === 0) {
@@ -745,22 +768,22 @@ function migrateV18ToV19(data: RawSavedData): void {
 
 // ── v19 → v20 ──────────────────────────────────────────────
 function migrateV19ToV20(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	// Schema-only bump: goalCount / rollupTo / rollupTags are all optional additive fields.
 	// Sanity-clean any pre-existing rollupTo arrays so they're either string[] or undefined.
 	if (Array.isArray(config[KTI])) {
-		for (const item of config[KTI]) {
+		for (const item of config[KTI] as Array<Record<string, unknown>>) {
 			if (item && item.rollupTo != null) {
 				if (!Array.isArray(item.rollupTo)) {
 					item.rollupTo = undefined;
 				} else {
-					const cleaned = item.rollupTo
-						.map((v: any) => String(v ?? '').trim())
+					const cleaned = (item.rollupTo as unknown[])
+						.map((v: unknown) => String(v ?? '').trim())
 						.filter(Boolean);
 					item.rollupTo = cleaned.length ? Array.from(new Set(cleaned)) : undefined;
 				}
 			}
-			if (item && item.goalCount != null && (typeof item.goalCount !== 'number' || item.goalCount <= 0)) {
+			if (item && item.goalCount != null && (typeof item.goalCount !== 'number' || (item.goalCount as number) <= 0)) {
 				item.goalCount = undefined;
 			}
 		}
@@ -773,11 +796,14 @@ function migrateV19ToV20(data: RawSavedData): void {
 // (see AiobView's deps.renderTimeline). That left an empty card at the
 // bottom of the timeline tab. Strip it from any persisted layout.
 function migrateV20ToV21(data: RawSavedData): void {
-	const sections: string[] | undefined = data.config?.layout?.timeline?.sections;
+	const config = data.config as MigrationConfig | undefined;
+	const layout = config?.layout as Record<string, unknown> | undefined;
+	const timeline = layout?.timeline as Record<string, unknown> | undefined;
+	const sections = timeline?.sections as string[] | undefined;
 	if (!Array.isArray(sections)) return;
 	const filtered = sections.filter((id) => id !== 'timeline');
 	if (filtered.length !== sections.length) {
-		data.config!.layout.timeline.sections = filtered;
+		timeline!.sections = filtered;
 	}
 }
 
@@ -788,9 +814,11 @@ function migrateV20ToV21(data: RawSavedData): void {
 // LayoutSurface type and lets users freely assign sections to any mix of
 // tabs, including sidebar.
 function migrateV21ToV22(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	const TABS: Array<'home' | 'timeline' | 'insight' | 'sidebar'> = ['home', 'timeline', 'insight', 'sidebar'];
-	const oldLayout = (config.layout && typeof config.layout === 'object') ? config.layout : {};
+	const oldLayout = (config.layout && typeof config.layout === 'object'
+		? config.layout
+		: {}) as Record<string, unknown>;
 
 	// Walk tabs in canonical order; first occurrence of each section wins
 	// its position in the new flat list. If a section was on multiple
@@ -799,7 +827,7 @@ function migrateV21ToV22(data: RawSavedData): void {
 	const seen = new Map<string, { id: string; tabs: string[] }>();
 
 	for (const tab of TABS) {
-		const surface = (oldLayout as any)[tab];
+		const surface = oldLayout[tab] as Record<string, unknown> | undefined;
 		const ids: unknown = surface?.sections;
 		if (!Array.isArray(ids)) continue;
 		for (const raw of ids) {
@@ -829,10 +857,10 @@ function migrateV21ToV22(data: RawSavedData): void {
 	config.layout = { sections: flat };
 }
 
-function ensureBoardWidgetTitleVisibility(config: Record<string, any>): void {
-	const current = config[KBWTV] && typeof config[KBWTV] === 'object'
+function ensureBoardWidgetTitleVisibility(config: MigrationConfig): void {
+	const current = (config[KBWTV] && typeof config[KBWTV] === 'object'
 		? config[KBWTV]
-		: {};
+		: {}) as Record<string, unknown>;
 	// Historical default (inlined — this legacy field no longer exists in AiobConfig).
 	config[KBWTV] = {
 		channels: typeof current.channels === 'boolean' ? current.channels : true,
@@ -854,25 +882,25 @@ function ensureBoardWidgetTitleVisibility(config: Record<string, any>): void {
  * - 然后删除两个 legacy 字段
  */
 function migrateV22ToV23(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	const unified: Record<string, boolean> = {
 		...DEFAULT_SECTION_TITLE_VISIBILITY,
 		...(config.sectionTitleVisibility && typeof config.sectionTitleVisibility === 'object'
-			? config.sectionTitleVisibility
+			? config.sectionTitleVisibility as Record<string, boolean>
 			: {}),
 	};
 
-	const rtv = config[KRSTV];
+	const rtv = config[KRSTV] as Record<string, unknown> | undefined;
 	if (rtv && typeof rtv === 'object') {
 		for (const key of ['focus', 'tracker', 'memo', KQT, 'channels'] as const) {
-			if (typeof rtv[key] === 'boolean') unified[key] = rtv[key];
+			if (typeof rtv[key] === 'boolean') unified[key] = rtv[key] as boolean;
 		}
 	}
 
-	const btv = config[KBWTV];
+	const btv = config[KBWTV] as Record<string, unknown> | undefined;
 	if (btv && typeof btv === 'object' && typeof btv.channels === 'boolean') {
 		// Board 视图的 channels 标题显隐优先级高于 record 视图（v14 时也是这么合并的）。
-		unified.channels = btv.channels;
+		unified.channels = btv.channels as boolean;
 	}
 
 	config.sectionTitleVisibility = unified;
@@ -895,7 +923,7 @@ function migrateV22ToV23(data: RawSavedData): void {
  * v24 直接从用户数据里删掉。
  */
 function migrateV23ToV24(data: RawSavedData): void {
-	const config = data.config!;
+	const config = data.config! as MigrationConfig;
 	delete config.channelRecentOpenedIds;
 }
 
@@ -915,12 +943,12 @@ function migrateV23ToV24(data: RawSavedData): void {
  *   - boolean → 'days'
  */
 function migrateV24ToV25(data: RawSavedData): void {
-	const config = data.config!;
-	const items = Array.isArray(config[KTI]) ? config[KTI] : [];
+	const config = data.config! as MigrationConfig;
+	const items = Array.isArray(config[KTI]) ? config[KTI] as Array<Record<string, unknown>> : [];
 	for (const item of items) {
 		if (!item || typeof item !== 'object') continue;
 		if (item.frequency === 'daily' || !item.frequency) continue;
-		if (typeof item.frequencyGoal !== 'number' || item.frequencyGoal <= 0) continue;
+		if (typeof item.frequencyGoal !== 'number' || (item.frequencyGoal as number) <= 0) continue;
 		if (item.frequencyGoalKind) continue;
 		if (item.mode === 'counter') item.frequencyGoalKind = 'count';
 		else item.frequencyGoalKind = 'days';

@@ -182,7 +182,7 @@ export function getTodoSemanticStatus(todo: TodoLogEntry): SemanticStatus {
 	return normalizeTodoStatus(todo.status, 'todo');
 }
 
-export function getSemanticSourceRef(entry: any): string {
+export function getSemanticSourceRef(entry: { type?: string; ts?: string; itemId?: string; noteId?: string; content?: string; subtype?: string }): string {
 	switch (entry.type) {
 		case 'memo':
 			return `memo:${entry.ts}`;
@@ -195,7 +195,7 @@ export function getSemanticSourceRef(entry: any): string {
 		case 'record':
 			return entry.noteId ? `note:${entry.noteId}` : `record:${entry.subtype || 'record'}:${entry.ts}`;
 		case 'review':
-			return `review:${entry.ts.slice(0, 10)}`;
+			return `review:${(entry.ts ?? '').slice(0, 10)}`;
 		case 'recurring-generate':
 			return `recurring:${entry.ts}`;
 		default:
@@ -229,7 +229,8 @@ export function normalizeSemanticAreaId(value: string): string | null {
 }
 
 function toSemanticLookupKey(value: unknown): string {
-	return String(value ?? '')
+	const str = typeof value === 'string' ? value : '';
+	return str
 		.trim()
 		.toLowerCase()
 		.replace(/[_\s]+/g, '-');

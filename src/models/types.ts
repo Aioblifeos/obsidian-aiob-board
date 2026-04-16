@@ -98,7 +98,7 @@ export interface TodayConfig {
 	focusRowVisibility?: Record<string, boolean>;
 	focusPinnedByDate?: Record<string, string[]>;
 	focusExpectationByDate?: Record<string, string>;
-	focusItemsByDate?: Record<string, any[]>;
+	focusItemsByDate?: Record<string, unknown[]>;
 	focusHiddenByDate?: Record<string, string[]>;
 	focusQueueByDate?: Record<string, string[]>;
 	sectionNotesByDate?: Record<string, Record<string, string>>;
@@ -107,7 +107,8 @@ export interface TodayConfig {
 	flowOrderByDate?: Record<string, string[]>;
 	bodyTouchedNotePathsByDate?: Record<string, string[]>;
 	typedWordsByDate?: Record<string, number>;
-	wordBaselinesByDate?: Record<string, Record<string, { baseline: number; current: number }>>;
+	wordBaselinesByDate?: Record<string, Record<string, number>>;
+	lastWordCount?: number;
 	quickTimerStartedAt?: string | null;
 	quickTimerTitle?: string | null;
 	quickTimerTargetKind?: string | null;
@@ -138,6 +139,8 @@ export type SectionTitleVisibility = Partial<Record<SectionId, boolean>>;
 
 export interface AiobConfig {
 	displayName: string;
+	bannerImage?: string;
+	bannerPosition?: { x: number; y: number };
 
 	// ── Unified section config ──
 	sectionVisibility: SectionVisibility;

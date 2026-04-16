@@ -41,14 +41,12 @@ export class FrontmatterColorizerService {
 	private hashCache = new Map<string, string>();
 	private mutationObserver: MutationObserver | null = null;
 	private debouncedApply: () => void;
-	private styleEl: HTMLStyleElement | null = null;
 
 	constructor(private plugin: AiobPlugin) {
 		this.debouncedApply = this.debounce(() => this.applyColors(), 100);
 	}
 
 	start(): void {
-		this.addDynamicCSS();
 		this.setupMutationObserver();
 		setTimeout(() => this.applyColors(), 200);
 
@@ -67,8 +65,6 @@ export class FrontmatterColorizerService {
 		this.mutationObserver?.disconnect();
 		this.mutationObserver = null;
 		this.hashCache.clear();
-		this.styleEl?.remove();
-		this.styleEl = null;
 		this.cleanupDOM();
 	}
 
@@ -149,16 +145,11 @@ export class FrontmatterColorizerService {
 
 		const color = this.getColorForValue(text, propertyKey);
 		if (color) {
-			pill.style.backgroundColor = color;
-			pill.style.color = '#4A5568';
-			pill.style.borderRadius = '12px';
-			pill.style.padding = '2px 8px';
-			pill.style.margin = '2px';
-			pill.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+			pill.style.setProperty('--fc-bg', color);
+			pill.classList.add('fc-colored');
 		} else {
-			pill.style.backgroundColor = '';
-			pill.style.color = '';
-			pill.style.border = '';
+			pill.style.removeProperty('--fc-bg');
+			pill.classList.remove('fc-colored');
 		}
 	}
 
@@ -174,14 +165,11 @@ export class FrontmatterColorizerService {
 		input.setAttribute('data-fc-value', text);
 		const color = this.getColorForValue(text, propertyKey);
 		if (color) {
-			input.style.backgroundColor = color;
-			input.style.color = '#4A5568';
-			input.style.borderRadius = '8px';
-			input.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+			input.style.setProperty('--fc-bg', color);
+			input.classList.add('fc-colored');
 		} else {
-			input.style.backgroundColor = '';
-			input.style.color = '';
-			input.style.border = '';
+			input.style.removeProperty('--fc-bg');
+			input.classList.remove('fc-colored');
 		}
 	}
 
@@ -215,16 +203,13 @@ export class FrontmatterColorizerService {
 
 			const color = this.getColorForValue(text, propertyKey);
 			if (color) {
-				el.style.backgroundColor = color;
-				el.style.color = '#4A5568';
-				el.style.borderRadius = '8px';
-				el.style.padding = '6px 12px';
-				el.style.margin = '2px 4px';
+				el.style.setProperty('--fc-bg', color);
+				el.classList.add('fc-colored');
 				el.setAttribute('data-fc-value', text.toLowerCase());
 				el.classList.add('fc-suggestion-item');
 			} else {
-				el.style.backgroundColor = '';
-				el.style.color = '';
+				el.style.removeProperty('--fc-bg');
+				el.classList.remove('fc-colored');
 			}
 		});
 	}
@@ -250,67 +235,26 @@ export class FrontmatterColorizerService {
 		});
 	}
 
-	private addDynamicCSS(): void {
-		this.styleEl?.remove();
-		const style = document.createElement('style');
-		style.id = 'aiob-board-fc-css';
-		style.textContent = `
-			.multi-select-pill {
-				display: inline-flex !important;
-				width: fit-content !important;
-				border-radius: 12px !important;
-				padding: 2px 8px !important;
-				margin: 2px !important;
-				font-size: 0.85em !important;
-				font-weight: 500 !important;
-				border: 1px solid rgba(255,255,255,0.2) !important;
-				transition: all 0.15s ease !important;
-			}
-			.multi-select-pill:hover {
-				opacity: 0.85;
-				transform: translateY(-1px);
-				box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-			}
-			.fc-suggestion-item {
-				border-radius: 8px !important;
-				padding: 6px 12px !important;
-				margin: 2px 4px !important;
-				font-size: 0.9em !important;
-				border: 1px solid rgba(255,255,255,0.2) !important;
-				transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
-			}
-			.fc-suggestion-item:hover {
-				transform: translateX(3px) !important;
-				filter: brightness(0.92) !important;
-				box-shadow: 2px 2px 6px rgba(0,0,0,0.08) !important;
-			}
-			.fc-suggestion-item.is-selected {
-				transform: translateX(3px) !important;
-				filter: brightness(0.88) !important;
-				box-shadow: 2px 2px 8px rgba(0,0,0,0.12) !important;
-			}
-		`;
-		document.head.appendChild(style);
-		this.styleEl = style;
-	}
-
 	private cleanupDOM(): void {
 		document.querySelectorAll('.multi-select-pill[data-fc-value]').forEach(pill => {
 			const el = pill as HTMLElement;
 			el.removeAttribute('data-fc-value');
 			el.removeAttribute('data-fc-property');
-			Object.assign(el.style, { backgroundColor: '', color: '', borderRadius: '', padding: '', margin: '', border: '' });
+			el.classList.remove('fc-colored');
+			el.style.removeProperty('--fc-bg');
 		});
 		document.querySelectorAll('.multi-select-input[data-fc-value]').forEach(input => {
 			const el = input as HTMLElement;
 			el.removeAttribute('data-fc-value');
-			Object.assign(el.style, { backgroundColor: '', color: '', borderRadius: '', border: '' });
+			el.classList.remove('fc-colored');
+			el.style.removeProperty('--fc-bg');
 		});
 		document.querySelectorAll('.fc-suggestion-item').forEach(item => {
 			const el = item as HTMLElement;
 			el.removeAttribute('data-fc-value');
 			el.classList.remove('fc-suggestion-item');
-			Object.assign(el.style, { backgroundColor: '', color: '', borderRadius: '', padding: '', margin: '' });
+			el.classList.remove('fc-colored');
+			el.style.removeProperty('--fc-bg');
 		});
 	}
 

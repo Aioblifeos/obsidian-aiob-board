@@ -61,7 +61,7 @@ export function getAiobWikilinkContext(textarea: HTMLTextAreaElement): { from: n
 	const closeIndex = Math.max(asciiClose, fullClose);
 	if (closeIndex > openIndex) return null;
 	const query = value.slice(openIndex + 2, cursor);
-	if (/[\]\】\n]/.test(query)) return null;
+	if (/[\]】\n]/.test(query)) return null;
 	return { from: openIndex, to: cursor, query: query.trim() };
 }
 

@@ -31,7 +31,7 @@ export class MarkdownTodoService {
 			this.plugin.requestAiobViewRefresh();
 		} catch (err) {
 			console.error('Aiob: Failed to create todo', err);
-			new Notice('Aiob: Todo 保存失败');
+			new Notice('Aiob: todo 保存失败');
 		}
 	}
 

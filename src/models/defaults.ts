@@ -101,9 +101,9 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
 /**
  * Legacy config values kept for migration compatibility.
  * These fields no longer exist in AiobConfig but are accessed via
- * `(DEFAULT_CONFIG as any).xxx` in migration code.
+ * `(DEFAULT_CONFIG as Record<string, unknown>).xxx` in migration code.
  */
-const LEGACY_DEFAULTS: Record<string, any> = {
+const LEGACY_DEFAULTS: Record<string, unknown> = {
 	recordFooterQuote: '先完成，再完美。',
 	[legacyKey('tg')]: [
 		{ id: 'routine', name: 'Routine' },
@@ -111,16 +111,16 @@ const LEGACY_DEFAULTS: Record<string, any> = {
 		{ id: 'habit', name: '习惯' },
 		{ id: 'daily-data', name: '数据' },
 	],
-	[legacyKey('ti')]: [] as any[],
-	[legacyKey('rt')]: [] as any[],
-	[legacyKey('rct')]: [] as any[],
+	[legacyKey('ti')]: [] as unknown[],
+	[legacyKey('rt')]: [] as unknown[],
+	[legacyKey('rct')]: [] as unknown[],
 	trackerVerticalTabs: false,
 	ai: { endpoint: '', model: '', apiKey: '', reviewStyle: '' },
 	review: { reminderTime: '22:00', autoSyncUnfinished: true, timeCategories: [], timelineSortOrder: 'asc' },
 	capture: { defaultFolder: '', categories: [], lastCategory: '', downloadMedia: false, enableOCR: false, ocrApiUrl: '', ocrApiKey: '', ocrModelName: '', ocrPrompt: '' },
 };
 
-export const DEFAULT_CONFIG: AiobConfig & Record<string, any> = {
+export const DEFAULT_CONFIG: AiobConfig & Record<string, unknown> = {
 	...LEGACY_DEFAULTS,
 
 	// ── Display Name ──

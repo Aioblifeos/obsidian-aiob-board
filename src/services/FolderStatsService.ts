@@ -1,4 +1,4 @@
-import { TFile, TFolder, TAbstractFile } from 'obsidian';
+import { TFile, TAbstractFile } from 'obsidian';
 import type AiobPlugin from '../main';
 
 /**
@@ -7,7 +7,6 @@ import type AiobPlugin from '../main';
  */
 export class FolderStatsService {
 	private mutationObserver: MutationObserver | null = null;
-	private styleEl: HTMLStyleElement | null = null;
 	private debouncedApply: () => void;
 
 	/** Cached per-file word counts: path → wordCount */
@@ -21,7 +20,6 @@ export class FolderStatsService {
 	}
 
 	start(): void {
-		this.addDynamicCSS();
 		this.setupMutationObserver();
 		this.registerVaultEvents();
 		void this.rebuildAndApply();
@@ -30,8 +28,6 @@ export class FolderStatsService {
 	destroy(): void {
 		this.mutationObserver?.disconnect();
 		this.mutationObserver = null;
-		this.styleEl?.remove();
-		this.styleEl = null;
 		this.cleanupDOM();
 		this.fileWordCounts.clear();
 		this.folderCache.clear();
@@ -250,30 +246,6 @@ export class FolderStatsService {
 			childList: true,
 			subtree: true,
 		});
-	}
-
-	private addDynamicCSS(): void {
-		this.styleEl?.remove();
-		const style = document.createElement('style');
-		style.id = 'aiob-folder-stats-css';
-		style.textContent = `
-			.aiob-folder-stats {
-				display: none;
-				margin-left: auto;
-				padding-right: 4px;
-				font-size: 0.85em;
-				color: inherit;
-				opacity: 0.6;
-				font-weight: 400;
-				pointer-events: none;
-				white-space: nowrap;
-			}
-			.aiob-folder-stats.is-ready {
-				display: inline-block;
-			}
-		`;
-		document.head.appendChild(style);
-		this.styleEl = style;
 	}
 
 	private cleanupDOM(): void {

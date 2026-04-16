@@ -16,7 +16,7 @@ function createScrollList(parent: HTMLElement, itemCount: number): HTMLElement {
 
 	const wrap = parent.createDiv('aiob-board-tn-scroll-wrap');
 	const list = wrap.createDiv('aiob-board-tn-scroll');
-	list.style.maxHeight = `${VISIBLE_COUNT * ROW_HEIGHT}px`;
+	list.style.setProperty('max-height', `${VISIBLE_COUNT * ROW_HEIGHT}px`);
 	list.addEventListener('scroll', () => {
 		const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
 		wrap.toggleClass('is-scrolled-bottom', atBottom);
@@ -122,13 +122,12 @@ export class TodoNotesSection implements Section {
 		if (completed.length) {
 			const toggle = container.createDiv('aiob-board-todo-done-header');
 			toggle.setText(`${this.deps.plugin.label('done')} (${completed.length})`);
-			const doneOuter = container.createDiv('aiob-board-todo-done-list');
-			doneOuter.style.display = 'none';
+			const doneOuter = container.createDiv('aiob-board-todo-done-list is-collapsed');
 			const doneList = createScrollList(doneOuter, completed.length);
 			toggle.addEventListener('click', () => {
-				const shown = doneOuter.style.display !== 'none';
-				doneOuter.style.display = shown ? 'none' : '';
-				toggle.toggleClass('is-open', !shown);
+				const wasCollapsed = doneOuter.hasClass('is-collapsed');
+				doneOuter.toggleClass('is-collapsed', !wasCollapsed);
+				toggle.toggleClass('is-open', wasCollapsed);
 			});
 			for (const todo of completed) this.renderTodoRow(doneList, todo, true);
 		}

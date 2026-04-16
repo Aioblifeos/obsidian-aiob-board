@@ -85,8 +85,8 @@ export function enhanceDialogTextareas(
 		if (textarea.dataset.lifeosDialogEnhanced === '1') return;
 		textarea.dataset.lifeosDialogEnhanced = '1';
 		const autosize = () => {
-			textarea.style.height = 'auto';
-			textarea.style.height = `${textarea.scrollHeight}px`;
+			textarea.style.setProperty('height', 'auto');
+			textarea.style.setProperty('height', `${textarea.scrollHeight}px`);
 		};
 		if (textarea.hasClass('aiob-dialog-textarea-compact')) {
 			textarea.addEventListener('keydown', (ke) => {

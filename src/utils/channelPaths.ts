@@ -9,7 +9,7 @@ interface ChannelPathSuggestion {
 	kind: ChannelPathSuggestionKind;
 }
 
-type ChannelPathApp = {
+export type ChannelPathApp = {
 	vault: {
 		getFiles: () => TFile[];
 		getAbstractFileByPath: (path: string) => TAbstractFile | null;
@@ -125,7 +125,7 @@ async function getOrCreateFileExplorerLeaf(app: ChannelPathApp): Promise<Workspa
 	if (leaf) return leaf;
 	leaf = app.workspace.getLeftLeaf(true);
 	if (!leaf) return null;
-	await leaf.setViewState({ type: 'file-explorer', active: true } as any);
+	await leaf.setViewState({ type: 'file-explorer', active: true });
 	return leaf;
 }
 

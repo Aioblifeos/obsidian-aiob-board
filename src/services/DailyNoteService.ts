@@ -11,7 +11,12 @@ export class DailyNoteService {
 	private get config() { return this.plugin.data.config; }
 
 	private getObsidianDailyNoteOptions(): { format: string; folder: string; template: string } {
-		const options = (this.app as any).internalPlugins?.getPluginById?.('daily-notes')?.instance?.options;
+		interface InternalPluginsApi {
+			internalPlugins?: {
+				getPluginById?: (id: string) => { instance?: { options?: { format?: string; folder?: string; template?: string } } } | undefined;
+			};
+		}
+		const options = (this.app as unknown as InternalPluginsApi).internalPlugins?.getPluginById?.('daily-notes')?.instance?.options;
 		return {
 			format: options?.format || 'YYYY-MM-DD',
 			folder: options?.folder || '',

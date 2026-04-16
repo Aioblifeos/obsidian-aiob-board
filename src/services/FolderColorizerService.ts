@@ -193,45 +193,8 @@ export class FolderColorizerService {
 		const style = document.createElement('style');
 		style.id = 'aiob-folder-colorizer-css';
 
-		// Static dialog styles
-		let css = `
-			.aiob-fc-color-row {
-				display: flex;
-				align-items: center;
-				gap: 8px;
-			}
-			.aiob-fc-color-row .aiob-dialog-label {
-				flex: 1;
-			}
-			.aiob-fc-swatch {
-				width: 36px;
-				height: 36px;
-				padding: 0;
-				border: 2px solid var(--background-modifier-border);
-				border-radius: 8px;
-				cursor: pointer;
-				background: none;
-				-webkit-appearance: none;
-				appearance: none;
-			}
-			.aiob-fc-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
-			.aiob-fc-swatch::-webkit-color-swatch { border: none; border-radius: 4px; }
-			.aiob-fc-clear-btn {
-				font-size: 0.78em;
-				padding: 4px 8px;
-				border-radius: 6px;
-				border: 1px solid var(--background-modifier-border);
-				background: var(--background-secondary);
-				color: var(--text-muted);
-				cursor: pointer;
-			}
-			.aiob-fc-clear-btn:hover {
-				color: var(--text-normal);
-				border-color: var(--interactive-accent);
-			}
-		`;
-
-		// Per-path color rules — CSS attribute selectors, instant on render
+		// Dynamic per-path color rules — CSS attribute selectors, instant on render
+		let css = '';
 		const colors = this.plugin.data.config.folderColors || {};
 		for (const [path, cfg] of Object.entries(colors)) {
 			const escaped = this.cssEscape(path);

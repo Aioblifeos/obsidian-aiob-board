@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, TAbstractFile, TFile, Notice, Editor, addIcon } from 'obsidian';
+import { Plugin, WorkspaceLeaf, TAbstractFile, TFile, Editor, addIcon } from 'obsidian';
 import type { AiobData } from './models/types';
 import { DEFAULT_CONFIG } from './models/defaults';
 import { DailyNoteService } from './services/DailyNoteService';
@@ -47,18 +47,19 @@ export default class AiobPlugin extends Plugin {
 		const previousVersion = saved?.schemaVersion ?? 0;
 		const migrated = runMigrations(saved);
 		// Deep-merge nested config objects so new fields always get defaults
-		const mergedConfig = { ...DEFAULT_CONFIG, ...migrated.config } as AiobData['config'];
+		const migratedConfig = migrated.config ?? {};
+		const mergedConfig: AiobData['config'] = { ...DEFAULT_CONFIG, ...migratedConfig };
 		// Patch nested objects that shallow spread would miss
-		mergedConfig.memoStorage = { ...DEFAULT_CONFIG.memoStorage, ...migrated.config?.memoStorage };
-		mergedConfig.todoStorage = { ...DEFAULT_CONFIG.todoStorage, ...migrated.config?.todoStorage };
-		mergedConfig.dailyNote = { ...DEFAULT_CONFIG.dailyNote, ...migrated.config?.dailyNote };
-		mergedConfig.appearance = { ...DEFAULT_CONFIG.appearance, ...migrated.config?.appearance };
-		mergedConfig.today = { ...DEFAULT_CONFIG.today, ...migrated.config?.today };
+		mergedConfig.memoStorage = { ...DEFAULT_CONFIG.memoStorage, ...(migratedConfig.memoStorage ?? {}) };
+		mergedConfig.todoStorage = { ...DEFAULT_CONFIG.todoStorage, ...(migratedConfig.todoStorage ?? {}) };
+		mergedConfig.dailyNote = { ...DEFAULT_CONFIG.dailyNote, ...(migratedConfig.dailyNote ?? {}) };
+		mergedConfig.appearance = { ...DEFAULT_CONFIG.appearance, ...(migratedConfig.appearance ?? {}) };
+		mergedConfig.today = { ...DEFAULT_CONFIG.today, ...(migratedConfig.today ?? {}) };
 
 		this.data = {
 			schemaVersion: migrated.schemaVersion,
 			config: mergedConfig,
-		} as AiobData;
+		};
 
 		// Push user area color overrides into the color system
 		setUserAreaColors(this.data.config.areaColors);
@@ -99,27 +100,27 @@ export default class AiobPlugin extends Plugin {
 		this.registerView(VIEW_TYPE_AIOB, (leaf) => new AiobView(leaf, this));
 
 		// Ribbon icon
-		this.addRibbonIcon('aiob', 'Aiob Board', () => {
-			this.activateView('sidebar');
+		this.addRibbonIcon('aiob', 'Aiob board', () => {
+			void this.activateView('sidebar');
 		});
 
 		// Commands
 		this.addCommand({
 			id: 'open-sidebar',
-			name: 'Open Aiob Board (Sidebar)',
-			callback: () => this.activateView('sidebar'),
+			name: 'Open sidebar',
+			callback: () => { void this.activateView('sidebar'); },
 		});
 
 		this.addCommand({
 			id: 'open-main',
-			name: 'Open Aiob Board (Main)',
-			callback: () => this.activateView('main'),
+			name: 'Open main view',
+			callback: () => { void this.activateView('main'); },
 		});
 
 		this.addCommand({
 			id: 'quick-memo',
-			name: 'Quick Memo',
-			callback: () => this.activateView('sidebar'),
+			name: 'Quick memo',
+			callback: () => { void this.activateView('sidebar'); },
 		});
 
 		// Settings tab
@@ -151,7 +152,7 @@ export default class AiobPlugin extends Plugin {
 		debugLog('Plugin loaded successfully');
 	}
 
-	async onunload() {
+	onunload(): void {
 		this.frontmatterColorizer?.destroy();
 		this.folderStatsService?.destroy();
 		this.folderColorizerService?.destroy();
@@ -249,12 +250,13 @@ export default class AiobPlugin extends Plugin {
 		if (!changed) return;
 		const path = `${this.app.vault.configDir}/types.json`;
 		try {
-			let existing: Record<string, any> = {};
+			let existing: Record<string, unknown> = {};
 			if (await this.app.vault.adapter.exists(path)) {
 				const raw = await this.app.vault.adapter.read(path);
-				existing = JSON.parse(raw);
+				existing = JSON.parse(raw) as Record<string, unknown>;
 			}
-			const types = existing.types && typeof existing.types === 'object' ? { ...existing.types } : {};
+			const existingTypes = existing.types;
+			const types: Record<string, string> = existingTypes && typeof existingTypes === 'object' ? { ...(existingTypes as Record<string, string>) } : {};
 			for (const [key, type] of Object.entries(managed)) {
 				if (!types[key]) types[key] = type;
 			}
@@ -484,7 +486,7 @@ export default class AiobPlugin extends Plugin {
 	getTodayTypedWords(): number {
 		if (!this._wordBaselines.size) {
 			// Before init completes, return last persisted total
-			return (this.data.config.today as any).lastWordCount ?? 0;
+			return this.data.config.today.lastWordCount ?? 0;
 		}
 		let total = 0;
 		for (const [path, baseline] of this._wordBaselines) {
@@ -501,26 +503,26 @@ export default class AiobPlugin extends Plugin {
 	 */
 	async initDailyNoteWordCount(): Promise<void> {
 		const today = formatLocalDate();
-		const stored = (this.data.config.today as any).wordBaselinesByDate || {};
-		const todayData = stored[today] as Record<string, number> | undefined;
+		const stored = this.data.config.today.wordBaselinesByDate || {};
+		const todayData = stored[today];
 
 		// Clean up legacy data (old format was {baseline,current} objects)
 		if (todayData) {
 			const hasLegacy = Object.values(todayData).some(v => typeof v !== 'number');
 			if (hasLegacy) {
 				delete stored[today];
-				(this.data.config.today as any).wordBaselinesByDate = stored;
+				this.data.config.today.wordBaselinesByDate = stored;
 				void this.saveData(this.data);
 			} else {
 				for (const [path, baseline] of Object.entries(todayData)) {
-					this._wordBaselines.set(path, baseline as number);
+					this._wordBaselines.set(path, baseline);
 					if (baseline === 0) this._todayNewFiles.add(path);
 					const file = this.app.vault.getAbstractFileByPath(path);
 					if (file instanceof TFile) {
 						const content = await this.app.vault.cachedRead(file);
 						this._wordCurrent.set(path, this.countWords(content));
 					} else {
-						this._wordCurrent.set(path, baseline as number);
+						this._wordCurrent.set(path, baseline);
 					}
 				}
 			}
@@ -547,7 +549,7 @@ export default class AiobPlugin extends Plugin {
 	private patchWordCountDOM(): void {
 		const total = this.getTodayTypedWords();
 		const text = `${total}`;
-		(this.data.config.today as any).lastWordCount = total;
+		this.data.config.today.lastWordCount = total;
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_AIOB)) {
 			const cards = leaf.view.containerEl.querySelectorAll('.aiob-sb-overview-card[data-stat="words"] .aiob-sb-overview-value');
 			cards.forEach(el => { el.textContent = text; });
@@ -560,15 +562,15 @@ export default class AiobPlugin extends Plugin {
 		this._persistTimer = setTimeout(() => {
 			this._persistTimer = null;
 			const today = formatLocalDate();
-			const stored = (this.data.config.today as any).wordBaselinesByDate || {};
+			const stored = this.data.config.today.wordBaselinesByDate || {};
 			// Prune old days
 			for (const d of Object.keys(stored)) { if (d < today) delete stored[d]; }
 			// Save today's baselines
 			const obj: Record<string, number> = {};
 			for (const [path, baseline] of this._wordBaselines) obj[path] = baseline;
 			stored[today] = obj;
-			(this.data.config.today as any).wordBaselinesByDate = stored;
-			(this.data.config.today as any).lastWordCount = this.getTodayTypedWords();
+			this.data.config.today.wordBaselinesByDate = stored;
+			this.data.config.today.lastWordCount = this.getTodayTypedWords();
 			void this.saveData(this.data);
 		}, 3000);
 	}
@@ -605,7 +607,7 @@ export default class AiobPlugin extends Plugin {
 		this.vaultRefreshTimer = window.setTimeout(() => {
 			this.vaultRefreshTimer = null;
 			for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_AIOB)) {
-				const view = leaf.view as AiobView;
+				const view = leaf.view as unknown as AiobView;
 				view?.refresh?.();
 			}
 		}, 50);

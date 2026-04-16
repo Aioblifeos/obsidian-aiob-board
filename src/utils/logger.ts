@@ -18,5 +18,5 @@ export function isAiobDebugEnabled(): boolean {
 
 export function debugLog(message: string, ...args: unknown[]): void {
 	if (!isAiobDebugEnabled()) return;
-	console.log(`Aiob: ${message}`, ...args);
+	console.debug(`Aiob: ${message}`, ...args);
 }

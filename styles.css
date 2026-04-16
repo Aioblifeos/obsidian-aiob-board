@@ -7453,3 +7453,170 @@ input[data-task=L]:checked::after,li[data-task=L]>input:checked::after,li[data-t
 	color: var(--text-faint);
 	font-size: 12px;
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Frontmatter Colorizer (was FrontmatterColorizerService.addDynamicCSS)
+   ──────────────────────────────────────────────────────────────── */
+.multi-select-pill {
+	display: inline-flex !important;
+	width: fit-content !important;
+	border-radius: 12px !important;
+	padding: 2px 8px !important;
+	margin: 2px !important;
+	font-size: 0.85em !important;
+	font-weight: 500 !important;
+	border: 1px solid rgba(255,255,255,0.2) !important;
+	transition: all 0.15s ease !important;
+}
+.multi-select-pill:hover {
+	opacity: 0.85;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.fc-suggestion-item {
+	border-radius: 8px !important;
+	padding: 6px 12px !important;
+	margin: 2px 4px !important;
+	font-size: 0.9em !important;
+	border: 1px solid rgba(255,255,255,0.2) !important;
+	transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+}
+.fc-suggestion-item:hover {
+	transform: translateX(3px) !important;
+	filter: brightness(0.92) !important;
+	box-shadow: 2px 2px 6px rgba(0,0,0,0.08) !important;
+}
+.fc-suggestion-item.is-selected {
+	transform: translateX(3px) !important;
+	filter: brightness(0.88) !important;
+	box-shadow: 2px 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+/* Frontmatter Colorizer — dynamic color via CSS custom property */
+.multi-select-pill.fc-colored {
+	background-color: var(--fc-bg);
+	color: #4A5568;
+	border-radius: 12px;
+	padding: 2px 8px;
+	margin: 2px;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.multi-select-input.fc-colored {
+	background-color: var(--fc-bg);
+	color: #4A5568;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.fc-suggestion-item.fc-colored {
+	background-color: var(--fc-bg);
+	color: #4A5568;
+	border-radius: 8px;
+	padding: 6px 12px;
+	margin: 2px 4px;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Folder Stats (was FolderStatsService.addDynamicCSS)
+   ──────────────────────────────────────────────────────────────── */
+.aiob-folder-stats {
+	display: none;
+	margin-left: auto;
+	padding-right: 4px;
+	font-size: 0.85em;
+	color: inherit;
+	opacity: 0.6;
+	font-weight: 400;
+	pointer-events: none;
+	white-space: nowrap;
+}
+.aiob-folder-stats.is-ready {
+	display: inline-block;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Folder Colorizer dialog (was FolderColorizerService.injectStyleSheet static part)
+   ──────────────────────────────────────────────────────────────── */
+.aiob-fc-color-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.aiob-fc-color-row .aiob-dialog-label {
+	flex: 1;
+}
+.aiob-fc-swatch {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 8px;
+	cursor: pointer;
+	background: none;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.aiob-fc-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
+.aiob-fc-swatch::-webkit-color-swatch { border: none; border-radius: 4px; }
+.aiob-fc-clear-btn {
+	font-size: 0.78em;
+	padding: 4px 8px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.aiob-fc-clear-btn:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Banner image — CSS custom property driven
+   ──────────────────────────────────────────────────────────────── */
+.aiob-banner.has-image {
+	background-image: var(--aiob-banner-bg);
+	background-size: cover;
+	background-position: var(--aiob-banner-pos, 50% 50%);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Memo textarea autosize — CSS custom property driven
+   ──────────────────────────────────────────────────────────────── */
+.aiob-memo-textarea {
+	height: var(--aiob-memo-height, auto);
+}
+
+/* Hidden file input for attachment picker */
+.aiob-hidden-file-input {
+	position: fixed;
+	left: -9999px;
+	opacity: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Todo done-list collapse
+   ──────────────────────────────────────────────────────────────── */
+.aiob-board-todo-done-list.is-collapsed {
+	display: none;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Dialog overlay — mobile viewport pinning via CSS custom properties
+   ──────────────────────────────────────────────────────────────── */
+.aiob-dialog-overlay.is-mobile-pinned {
+	position: fixed;
+	top: var(--aiob-overlay-top, 0);
+	left: var(--aiob-overlay-left, 0);
+	right: auto;
+	bottom: auto;
+	width: var(--aiob-overlay-width, 100%);
+	height: var(--aiob-overlay-height, 100%);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Dialog textarea autosize — CSS custom property driven (wikilinks)
+   ──────────────────────────────────────────────────────────────── */
+.aiob-dialog-textarea {
+	height: var(--aiob-textarea-height, auto);
+}

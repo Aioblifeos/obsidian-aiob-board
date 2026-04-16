@@ -34,6 +34,6 @@ export class SectionFactory {
 	}
 
 	all(): Section[] {
-		return Object.values(this.instances) as Section[];
+		return Object.values(this.instances).filter((s): s is Section => s !== undefined);
 	}
 }

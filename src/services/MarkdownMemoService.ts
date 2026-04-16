@@ -32,13 +32,13 @@ export class MarkdownMemoService {
 			this.plugin.requestAiobViewRefresh();
 		} catch (err) {
 			console.error('Aiob: Failed to save memo', err);
-			new Notice('Aiob: Memo 保存失败');
+			new Notice('Aiob: memo 保存失败');
 		}
 	}
 
 	/** Get memos for a given date (reads from that date's target file). */
 	async getMemosForDate(dateStr: string): Promise<ParsedMemo[]> {
-		const file = await this.resolveTargetFileForDate(dateStr);
+		const file = this.resolveTargetFileForDate(dateStr);
 		if (!file) return [];
 		const raw = await this.plugin.app.vault.cachedRead(file);
 		return this.parseMemosFromContent(raw);
@@ -53,7 +53,7 @@ export class MarkdownMemoService {
 	/** Edit a memo's content in-place. */
 	async editMemo(memo: ParsedMemo, newContent: string): Promise<void> {
 		try {
-			const file = await this.resolveTargetFileForDate(formatLocalDate());
+			const file = this.resolveTargetFileForDate(formatLocalDate());
 			if (!file) return;
 			const raw = await this.plugin.app.vault.read(file);
 			const lines = raw.split('\n');
@@ -64,14 +64,14 @@ export class MarkdownMemoService {
 			this.plugin.requestAiobViewRefresh();
 		} catch (err) {
 			console.error('Aiob: Failed to edit memo', err);
-			new Notice('Aiob: Memo 编辑失败');
+			new Notice('Aiob: memo 编辑失败');
 		}
 	}
 
 	/** Delete a specific memo line. */
 	async deleteMemo(memo: ParsedMemo): Promise<void> {
 		try {
-			const file = await this.resolveTargetFileForDate(formatLocalDate());
+			const file = this.resolveTargetFileForDate(formatLocalDate());
 			if (!file) return;
 			const raw = await this.plugin.app.vault.read(file);
 			const lines = raw.split('\n');
@@ -86,14 +86,14 @@ export class MarkdownMemoService {
 			this.plugin.requestAiobViewRefresh();
 		} catch (err) {
 			console.error('Aiob: Failed to delete memo', err);
-			new Notice('Aiob: Memo 删除失败');
+			new Notice('Aiob: memo 删除失败');
 		}
 	}
 
 	/** Remove the last memo line from today's target file. Returns true if a line was removed. */
 	async undoLastMemo(): Promise<boolean> {
 		try {
-			const file = await this.resolveTargetFileForDate(formatLocalDate());
+			const file = this.resolveTargetFileForDate(formatLocalDate());
 			if (!file) return false;
 			const raw = await this.plugin.app.vault.read(file);
 			const memos = this.parseMemosFromContent(raw);
@@ -244,7 +244,7 @@ export class MarkdownMemoService {
 	}
 
 	/** Resolve TFile for a specific date (for reading). */
-	private async resolveTargetFileForDate(dateStr: string): Promise<TFile | null> {
+	private resolveTargetFileForDate(dateStr: string): TFile | null {
 		const cfg = this.plugin.data.config.memoStorage;
 		const filePath = this.resolveTargetPathForDate(cfg.targetFile, dateStr);
 		const existing = this.plugin.app.vault.getAbstractFileByPath(filePath);

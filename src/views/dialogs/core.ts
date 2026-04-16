@@ -15,22 +15,17 @@ function bindDialogViewportLayout(overlay: HTMLDivElement, card: HTMLDivElement)
 		// 移动端把 overlay 钉在 visualViewport 上,键盘弹起时 visualViewport 会收缩并让出键盘占用的区域,
 		// 这样 overlay 永远跟随可见区域走,不会被键盘遮挡。桌面端保留默认的 fixed inset: 0。
 		if (viewport && isMobileWidth) {
-			// 不用 inset shorthand — 它会覆盖前面单独设的 top/left。
-			// 直接设四个 longhand，inline 优先级高于 stylesheet 的 inset: 0。
-			overlay.style.position = 'fixed';
-			overlay.style.top = `${offsetTop}px`;
-			overlay.style.left = `${offsetLeft}px`;
-			overlay.style.right = 'auto';
-			overlay.style.bottom = 'auto';
-			overlay.style.width = `${viewportWidth}px`;
-			overlay.style.height = `${viewportHeight}px`;
+			overlay.style.setProperty('--aiob-overlay-top', `${offsetTop}px`);
+			overlay.style.setProperty('--aiob-overlay-left', `${offsetLeft}px`);
+			overlay.style.setProperty('--aiob-overlay-width', `${viewportWidth}px`);
+			overlay.style.setProperty('--aiob-overlay-height', `${viewportHeight}px`);
+			overlay.classList.add('is-mobile-pinned');
 		} else {
-			overlay.style.removeProperty('top');
-			overlay.style.removeProperty('left');
-			overlay.style.removeProperty('right');
-			overlay.style.removeProperty('bottom');
-			overlay.style.removeProperty('width');
-			overlay.style.removeProperty('height');
+			overlay.classList.remove('is-mobile-pinned');
+			overlay.style.removeProperty('--aiob-overlay-top');
+			overlay.style.removeProperty('--aiob-overlay-left');
+			overlay.style.removeProperty('--aiob-overlay-width');
+			overlay.style.removeProperty('--aiob-overlay-height');
 		}
 
 		const sideGap = isMobileWidth ? (viewportWidth <= 480 ? 10 : 12) : 24;
@@ -44,7 +39,7 @@ function bindDialogViewportLayout(overlay: HTMLDivElement, card: HTMLDivElement)
 				: `${topGapMin}px`);
 		overlay.style.setProperty('--aiob-dialog-bottom-gap', `${bottomGap}px`);
 		// maxHeight 用保守估值，实际 safe-area 可能更大，card 内容不会溢出
-		card.style.maxHeight = `${Math.max(220, viewportHeight - topGapMin - bottomGap)}px`;
+		card.style.setProperty('max-height', `${Math.max(220, viewportHeight - topGapMin - bottomGap)}px`);
 	};
 
 	const keepFocusedFieldVisible = () => {

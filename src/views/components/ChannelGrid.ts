@@ -96,8 +96,8 @@ export class ChannelGrid extends Component {
 				const add = grid.createDiv('aiob-channel-item aiob-channel-add');
 				const addOrb = add.createSpan({ cls: 'aiob-channel-orb' });
 				addOrb.createSpan({ text: '➕', cls: 'aiob-channel-icon' });
-				add.setAttribute('aria-label', '添加 Channel');
-				add.setAttribute('title', '添加 Channel');
+				add.setAttribute('aria-label', '添加 channel');
+				add.setAttribute('title', '添加 channel');
 				add.createSpan({ text: '添加', cls: 'aiob-channel-name' });
 				add.addEventListener('click', () => {
 					const newCh = { id: `ch_${Date.now()}`, name: '', icon: '📂', path: '' };
@@ -360,11 +360,11 @@ export class ChannelGrid extends Component {
 	}
 
 	private showChannelDialog(ch: ChannelDef, isNew = false): void {
-		const { overlay, card } = createDialogShell(isNew ? '添加 Channel' : '编辑 Channel', 'aiob-dialog-card-form aiob-dialog-card-wide');
+		const { overlay, card } = createDialogShell(isNew ? '添加 channel' : '编辑 Channel', 'aiob-dialog-card-form aiob-dialog-card-wide');
 		const titleRow = createDialogRow(card, '名称');
 		const titleInput = titleRow.createEl('textarea', {
 			cls: 'aiob-dialog-input aiob-dialog-textarea aiob-dialog-textarea-compact',
-			attr: { placeholder: '例如 📂 Tasks', rows: '1' },
+			attr: { placeholder: '例如 📂 tasks', rows: '1' },
 		});
 		titleInput.value = [ch.icon, ch.name].filter(Boolean).join(' ').trim();
 		const pathRow = createDialogRow(card, '路径');

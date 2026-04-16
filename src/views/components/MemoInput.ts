@@ -63,8 +63,8 @@ export class MemoInput extends Component {
 			attr: { placeholder: '写点碎碎念、想法、观察...', rows: '2' },
 		});
 		const autosizeMemo = () => {
-			textarea.style.height = 'auto';
-			textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+			textarea.style.setProperty('height', 'auto');
+			textarea.style.setProperty('height', `${Math.min(textarea.scrollHeight, 200)}px`);
 		};
 		autosizeMemo();
 		const attachmentStrip = box.createDiv('aiob-memo-attachment-strip');
@@ -344,7 +344,7 @@ export class MemoInput extends Component {
 
 		// Restore draft
 		const draftKey = 'aiob-memo-draft';
-		const savedDraft = localStorage.getItem(draftKey);
+		const savedDraft = this.plugin.app.loadLocalStorage(draftKey);
 		if (savedDraft) {
 			textarea.value = savedDraft;
 			autosizeMemo();
@@ -354,7 +354,7 @@ export class MemoInput extends Component {
 		const submit = () => {
 			const value = textarea.value.trim();
 			if (!value) return;
-			localStorage.removeItem(draftKey);
+			this.plugin.app.saveLocalStorage(draftKey, null);
 			const managedAttachmentPaths = this.getManagedAttachmentPathsForContent(value, memoAttachmentPaths);
 			const removedAttachmentPaths = memoAttachmentPaths.filter((path) => !managedAttachmentPaths.includes(path));
 			if (removedAttachmentPaths.length) {
@@ -394,7 +394,7 @@ export class MemoInput extends Component {
 		draftBtn.addEventListener('click', () => {
 			const value = textarea.value.trim();
 			if (!value) return;
-			localStorage.setItem(draftKey, value);
+			this.plugin.app.saveLocalStorage(draftKey, value);
 			this.showMemoFeedback(feedback, '✓ 草稿已保存', 'success', 1500);
 		});
 		sendBtn.addEventListener('click', submit);
@@ -403,7 +403,7 @@ export class MemoInput extends Component {
 			if (undone) {
 				this.showMemoFeedback(feedback, '✓ 已撤回', 'success', 3000);
 			} else {
-				new Notice('没有可撤回的 Memo');
+				new Notice('没有可撤回的 memo');
 			}
 		});
 		textarea.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -531,7 +531,7 @@ export class MemoInput extends Component {
 							new Notice('✓ 已撤回', 3000);
 							onAfterSubmit?.();
 						} else {
-							new Notice('没有可撤回的 Memo');
+							new Notice('没有可撤回的 memo');
 						}
 					},
 					},
@@ -653,9 +653,7 @@ export class MemoInput extends Component {
 			const input = document.createElement('input');
 			input.type = 'file';
 			input.multiple = true;
-			input.style.position = 'fixed';
-			input.style.left = '-9999px';
-			input.style.opacity = '0';
+			input.className = 'aiob-hidden-file-input';
 			document.body.appendChild(input);
 			let settled = false;
 			let focusTimer: number | null = null;
@@ -897,7 +895,7 @@ export class MemoInput extends Component {
 			const file = this.plugin.app.vault.getAbstractFileByPath(path);
 			if (!file) continue;
 			try {
-				await this.plugin.app.vault.trash(file, false);
+				await this.plugin.app.fileManager.trashFile(file);
 			} catch (error) {
 				console.error('Aiob: Failed to cleanup draft memo attachment', path, error);
 			}
