@@ -134,7 +134,7 @@ export class AiobSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('插件界面语言')
-			.setDesc('今日 / 本周 / 本月 / 今年、Todo、Notes、常用数据库等标题')
+			.setDesc('今日 / 本周 / 本月 / 今年、todo、notes、常用数据库等标题')
 			.addDropdown(dd => dd
 				.addOption('zh', '中文').addOption('en', 'English')
 				.setValue(this.plugin.data.config.appearance.sectionLanguage ?? 'zh')
@@ -233,7 +233,7 @@ export class AiobSettingTab extends PluginSettingTab {
 		const memoCfg = this.plugin.data.config.memoStorage;
 
 		new Setting(containerEl)
-			.setName('Memos 插入哪个文档')
+			.setName('闪念存储位置')
 			.addText(text => {
 				text.setPlaceholder('daily-note (当天日记)').setValue(memoCfg.targetFile)
 					.onChange(val => { void (async () => { memoCfg.targetFile = val.trim() || 'daily-note'; await this.plugin.saveData(this.plugin.data); })(); });
@@ -288,7 +288,7 @@ export class AiobSettingTab extends PluginSettingTab {
 		const todoCfg = this.plugin.data.config.todoStorage;
 
 		new Setting(containerEl)
-			.setName('Todo 插入哪个文档')
+			.setName('待办存储位置')
 			.addText(text => {
 				text.setPlaceholder('daily-note (当天日记)').setValue(todoCfg.targetFile)
 					.onChange(val => { void (async () => { todoCfg.targetFile = val.trim() || 'daily-note'; await this.plugin.saveData(this.plugin.data); })(); });

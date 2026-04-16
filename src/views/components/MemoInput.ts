@@ -63,8 +63,8 @@ export class MemoInput extends Component {
 			attr: { placeholder: '写点碎碎念、想法、观察...', rows: '2' },
 		});
 		const autosizeMemo = () => {
-			textarea.style.setProperty('height', 'auto');
-			textarea.style.setProperty('height', `${Math.min(textarea.scrollHeight, 200)}px`);
+			textarea.setCssProps({ 'height': 'auto' });
+			textarea.setCssProps({ 'height': `${Math.min(textarea.scrollHeight, 200)}px` });
 		};
 		autosizeMemo();
 		const attachmentStrip = box.createDiv('aiob-memo-attachment-strip');
@@ -398,13 +398,15 @@ export class MemoInput extends Component {
 			this.showMemoFeedback(feedback, '✓ 草稿已保存', 'success', 1500);
 		});
 		sendBtn.addEventListener('click', submit);
-		undoBtn.addEventListener('click', async () => {
-			const undone = await this.plugin.markdownMemoService.undoLastMemo();
-			if (undone) {
-				this.showMemoFeedback(feedback, '✓ 已撤回', 'success', 3000);
-			} else {
-				new Notice('没有可撤回的 memo');
-			}
+		undoBtn.addEventListener('click', () => {
+			void (async () => {
+				const undone = await this.plugin.markdownMemoService.undoLastMemo();
+				if (undone) {
+					this.showMemoFeedback(feedback, '✓ 已撤回', 'success', 3000);
+				} else {
+					new Notice('没有可撤回的 memo');
+				}
+			})();
 		});
 		textarea.addEventListener('keydown', (e: KeyboardEvent) => {
 			if (linkSuggestions.length) {
@@ -509,30 +511,34 @@ export class MemoInput extends Component {
 				{
 					icon: 'paperclip',
 					title: '附件',
-					onClick: async () => {
-						const paths = await this.attachFilesToMemoTextarea(textarea, {
-							onInserted: () => textarea.dispatchEvent(new Event('input')),
-							onSuccess: (message) => new Notice(message),
-							onError: (message) => new Notice(message),
-						});
-						if (paths.length) {
-							memoAttachmentPaths = [...new Set([...memoAttachmentPaths, ...paths])];
-						}
+					onClick: () => {
+						void (async () => {
+							const paths = await this.attachFilesToMemoTextarea(textarea, {
+								onInserted: () => textarea.dispatchEvent(new Event('input')),
+								onSuccess: (message) => new Notice(message),
+								onError: (message) => new Notice(message),
+							});
+							if (paths.length) {
+								memoAttachmentPaths = [...new Set([...memoAttachmentPaths, ...paths])];
+							}
+						})();
 					},
 				},
 				{ icon: 'tag', title: '标签', onClick: () => this.insertAtCursor(textarea, '#') },
 				{ icon: 'list', title: '列表', onClick: () => this.insertAtCursor(textarea, '- ') },
 				{
 					icon: 'undo-2',
-					title: '撤回上一条 Memo',
-					onClick: async () => {
-						const undone = await this.plugin.markdownMemoService.undoLastMemo();
-						if (undone) {
-							new Notice('✓ 已撤回', 3000);
-							onAfterSubmit?.();
-						} else {
-							new Notice('没有可撤回的 memo');
-						}
+					title: '撤回上一条 memo',
+					onClick: () => {
+						void (async () => {
+							const undone = await this.plugin.markdownMemoService.undoLastMemo();
+							if (undone) {
+								new Notice('✓ 已撤回', 3000);
+								onAfterSubmit?.();
+							} else {
+								new Notice('没有可撤回的 memo');
+							}
+						})();
 					},
 					},
 				],

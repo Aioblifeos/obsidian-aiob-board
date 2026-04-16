@@ -1,4 +1,4 @@
-import { Menu, TFile, TFolder, TAbstractFile } from 'obsidian';
+import { Menu, TFolder, TAbstractFile } from 'obsidian';
 import type AiobPlugin from '../main';
 import { createDialogShell, presentDialogShell, createDialogRow } from '../views/dialogs/core';
 
@@ -129,7 +129,7 @@ export class FolderColorizerService {
 			cls: 'aiob-dialog-submit-btn',
 			text: '保存',
 		});
-		saveBtn.addEventListener('click', async () => {
+		saveBtn.addEventListener('click', () => {
 			if (!this.plugin.data.config.folderColors) {
 				this.plugin.data.config.folderColors = {};
 			}
@@ -141,7 +141,7 @@ export class FolderColorizerService {
 			} else {
 				delete this.plugin.data.config.folderColors[folderPath];
 			}
-			await this.plugin.saveData(this.plugin.data);
+			void this.plugin.saveData(this.plugin.data);
 			this.applyColors();
 			overlay.remove();
 		});

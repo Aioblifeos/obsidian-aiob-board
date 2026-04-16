@@ -123,7 +123,7 @@ export class FolderStatsService {
 				return;
 			}
 
-			let badge = el.querySelector('.aiob-folder-stats') as HTMLElement | null;
+			let badge: HTMLElement | null = el.querySelector('.aiob-folder-stats');
 			const text = `${stats.files} · ${this.formatWords(stats.words)}`;
 
 			if (badge) {

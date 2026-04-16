@@ -82,6 +82,7 @@ export class AiobView extends ItemView {
 	navigation = false;
 
 	async onOpen() {
+		await super.onOpen();
 		const c = this.containerEl.children[1] as HTMLElement;
 		c.empty();
 		c.addClass('aiob-container');
@@ -106,6 +107,7 @@ export class AiobView extends ItemView {
 	}
 
 	async onClose() {
+		await super.onClose();
 		this.rootEl?.style.removeProperty('--aiob-vh');
 		this.rootEl = null;
 	}
@@ -225,7 +227,7 @@ export class AiobView extends ItemView {
 						const ts = Date.now();
 						const dp = `_lifeos_banner_${ts}.${ext}`;
 						for (const f of this.app.vault.getFiles()) {
-							if (f.name.startsWith('_lifeos_banner_')) await this.app.vault.delete(f);
+							if (f.name.startsWith('_lifeos_banner_')) await this.app.fileManager.trashFile(f);
 						}
 						await this.app.vault.createBinary(dp, ab);
 						this.plugin.data.config.bannerImage = dp;
@@ -242,8 +244,8 @@ export class AiobView extends ItemView {
 			input.click();
 		}));
 
-		menu.addItem(i => i.setTitle('输入 Vault 内图片路径').setIcon('link').onClick(() => {
-			showTextInputDialog('输入 Vault 内图片路径', '', (path) => {
+		menu.addItem(i => i.setTitle('输入 vault 内图片路径').setIcon('link').onClick(() => {
+			showTextInputDialog('输入 vault 内图片路径', '', (path) => {
 				const file = this.app.vault.getAbstractFileByPath(path);
 				if (file instanceof TFile) {
 					this.plugin.data.config.bannerImage = path;

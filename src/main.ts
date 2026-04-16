@@ -176,7 +176,7 @@ export default class AiobPlugin extends Plugin {
 	async activateView(position: 'sidebar' | 'main' = 'sidebar') {
 		const leaf = await this.ensureAiobLeaf(position);
 		if (leaf) {
-			this.app.workspace.revealLeaf(leaf);
+			await this.app.workspace.revealLeaf(leaf);
 		}
 	}
 

@@ -246,11 +246,14 @@ function migrateV0ToV1(data: RawSavedData): void {
 function ensureChannelConfig(config: MigrationConfig): void {
 	const channelIds = new Set(
 		(Array.isArray(config.channels) ? (config.channels as unknown[]) : [])
-			.map((entry: unknown) => String((entry as Record<string, unknown>)?.id ?? '').trim())
+			.map((entry: unknown) => {
+				const rec = entry as Record<string, unknown> | undefined;
+				return typeof rec?.id === 'string' ? rec.id.trim() : '';
+			})
 			.filter(Boolean),
 	);
 	config.channelCoreIds = Array.isArray(config.channelCoreIds)
-		? [...new Set((config.channelCoreIds as unknown[]).map((id: unknown) => String(id ?? '').trim()).filter((id: string) => !!id && channelIds.has(id)))]
+		? [...new Set((config.channelCoreIds as unknown[]).map((id: unknown) => typeof id === 'string' ? id.trim() : '').filter((id: string) => !!id && channelIds.has(id)))]
 		: DEFAULT_CONFIG.channelCoreIds.filter((id) => channelIds.has(id));
 }
 
@@ -325,7 +328,7 @@ function ensureDailyNoteConfig(config: MigrationConfig): void {
 		? [...DEFAULT_CONFIG.dailyNote.sections]
 		: ['todo', 'notes', 'timeline', 'review'];
 	const savedSections = Array.isArray(current.sections)
-		? (current.sections as unknown[]).map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
+		? (current.sections as unknown[]).map((v: unknown) => typeof v === 'string' ? v.trim() : '').filter(Boolean)
 		: [];
 	const sectionSeen = new Set<string>();
 	const sections = [...savedSections, ...defaultSections]
@@ -534,7 +537,7 @@ function ensureTodayConfig(config: MigrationConfig): void {
 		? [...DEFAULT_CONFIG.today.overviewOrder]
 		: ['timeline', 'notes', 'capture', 'todo', 'tracker', 'tasks'];
 	const savedOverviewOrder = Array.isArray(current.overviewOrder)
-		? (current.overviewOrder as unknown[]).map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
+		? (current.overviewOrder as unknown[]).map((v: unknown) => typeof v === 'string' ? v.trim() : '').filter(Boolean)
 		: [];
 	const overviewSeen = new Set<string>();
 	const overviewOrder = [...savedOverviewOrder, ...defaultOverviewOrder]
@@ -562,11 +565,11 @@ function ensureTodayConfig(config: MigrationConfig): void {
 			? current[KQTSA] : null,
 		[KQTT]: typeof current[KQTT] === 'string' && current[KQTT].trim()
 			? current[KQTT].trim() : null,
-		[KQTTK]: ['none', 'todo', 'tracker'].includes(String(current[KQTTK] || ''))
+		[KQTTK]: typeof current[KQTTK] === 'string' && ['none', 'todo', 'tracker'].includes(current[KQTTK])
 			? current[KQTTK] : null,
 		[KQTTI]: typeof current[KQTTI] === 'string' && current[KQTTI].trim()
 			? current[KQTTI].trim() : null,
-		[KQTTSB]: ['todo', 'pending', 'doing'].includes(String(current[KQTTSB] || ''))
+		[KQTTSB]: typeof current[KQTTSB] === 'string' && ['todo', 'pending', 'doing'].includes(current[KQTTSB])
 			? current[KQTTSB] : null,
 	};
 }
@@ -587,7 +590,7 @@ function ensureRecordSectionTitleVisibility(config: MigrationConfig): void {
 
 function ensureOrderedWidgetIds<T extends string>(raw: unknown, defaults: readonly T[]): T[] {
 	const saved = Array.isArray(raw)
-		? (raw as unknown[]).map((value: unknown) => String(value ?? '').trim()).filter(Boolean)
+		? (raw as unknown[]).map((value: unknown) => typeof value === 'string' ? value.trim() : '').filter(Boolean)
 		: [];
 	const seen = new Set<string>();
 	return [...saved, ...defaults]
@@ -778,12 +781,12 @@ function migrateV19ToV20(data: RawSavedData): void {
 					item.rollupTo = undefined;
 				} else {
 					const cleaned = (item.rollupTo as unknown[])
-						.map((v: unknown) => String(v ?? '').trim())
+						.map((v: unknown) => typeof v === 'string' ? v.trim() : '')
 						.filter(Boolean);
 					item.rollupTo = cleaned.length ? Array.from(new Set(cleaned)) : undefined;
 				}
 			}
-			if (item && item.goalCount != null && (typeof item.goalCount !== 'number' || (item.goalCount as number) <= 0)) {
+			if (item && item.goalCount != null && (typeof item.goalCount !== 'number' || item.goalCount <= 0)) {
 				item.goalCount = undefined;
 			}
 		}
@@ -893,14 +896,14 @@ function migrateV22ToV23(data: RawSavedData): void {
 	const rtv = config[KRSTV] as Record<string, unknown> | undefined;
 	if (rtv && typeof rtv === 'object') {
 		for (const key of ['focus', 'tracker', 'memo', KQT, 'channels'] as const) {
-			if (typeof rtv[key] === 'boolean') unified[key] = rtv[key] as boolean;
+			if (typeof rtv[key] === 'boolean') unified[key] = rtv[key];
 		}
 	}
 
 	const btv = config[KBWTV] as Record<string, unknown> | undefined;
 	if (btv && typeof btv === 'object' && typeof btv.channels === 'boolean') {
 		// Board 视图的 channels 标题显隐优先级高于 record 视图（v14 时也是这么合并的）。
-		unified.channels = btv.channels as boolean;
+		unified.channels = btv.channels;
 	}
 
 	config.sectionTitleVisibility = unified;
@@ -948,7 +951,7 @@ function migrateV24ToV25(data: RawSavedData): void {
 	for (const item of items) {
 		if (!item || typeof item !== 'object') continue;
 		if (item.frequency === 'daily' || !item.frequency) continue;
-		if (typeof item.frequencyGoal !== 'number' || (item.frequencyGoal as number) <= 0) continue;
+		if (typeof item.frequencyGoal !== 'number' || item.frequencyGoal <= 0) continue;
 		if (item.frequencyGoalKind) continue;
 		if (item.mode === 'counter') item.frequencyGoalKind = 'count';
 		else item.frequencyGoalKind = 'days';
