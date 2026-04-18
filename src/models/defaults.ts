@@ -156,7 +156,7 @@ export const DEFAULT_CONFIG: AiobConfig & Record<string, unknown> = {
 	todoStorage: {
 		targetFile: 'daily-note',
 		heading: '## Todo',
-		syncFromVault: true,
+		syncFromVault: false,
 		syncFolder: '',
 	},
 
