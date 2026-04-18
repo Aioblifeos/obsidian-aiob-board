@@ -1,8 +1,10 @@
 # Aiob Board
 
-一个简洁的 Obsidian 仪表盘插件 —— 一眼纵览你在 Obsidian 耕耘的一天。
+一个简洁的 Obsidian 仪表盘插件 —— 一眼纵览你在 Obsidian 上耕耘的一天。
 
-本插件为 Aiob LifeOS 插件（未上线）的基础版，以 daily note 为路径写入 Markdown，快速记录碎碎念、待办等，不包括时间轴、洞察、时间追踪、习惯打卡、AI 助手等进阶版功能。
+快速记录碎碎念、新建待办，以 Markdown 格式写入 daily note（日记）的相应标题下。
+
+本插件为 Aiob LifeOS 插件（未上线）的基础版，不包括时间轴、洞察、时间追踪、习惯打卡、AI 助手等进阶版功能。
 
 ![Aiob Board Screenshot](https://raw.githubusercontent.com/Aioblifeos/obsidian-aiob-board/main/screenshots/main.png)
 
@@ -10,16 +12,16 @@
 
 ### 仪表盘
 
-- **自定义横幅** — 拖动调整背景图位置，点击编辑显示名称
+- **自定义横幅** — 右键可以添加顶部banner，拖动调整背景图位置
 - **每日进度条** — 今日 / 本周 / 本月 / 今年，可视化进度段
 - **数据概览** — 实时字数、待办进度、闪念数、今日新建文档
 - **侧边栏 + 主面板** — 可作为紧凑侧边栏或全宽标签页使用
 
-### 速记（Memo）
+### 碎碎念（Memo）
 
 - 即时记录碎碎念，自动保存到日记并带时间戳
 - 支持 `[[双链]]`，行内预览和建议
-- 拖放文件附件
+- 可添加附件
 - 下方显示最近 3 条闪念，完整 Markdown 渲染
 - 右键菜单编辑、删除
 
@@ -36,14 +38,14 @@
 
 ### 常用数据库
 
-- **快捷访问网格** — 将常用文件夹/文件固定为频道卡片
+- **快捷访问网格** — 将常用base/文件夹/文件固定为频道卡片
 - 设置页完全可配 — 添加、删除、排序、自定义图标
 
 ### 文件浏览器增强
 
-- **文件夹/文件颜色标记** — 右键文件浏览器中的文件夹或文件，自定义背景色和文字颜色，重启后保持
+- **文件夹/文件颜色标记** — 右键文件浏览器中的文件夹或文件，自定义背景色和文字颜色
 - **文件夹数据统计** — 在文件夹名称旁显示文件数和总字数
-- **属性彩色标签** — 自动为编辑器中多选属性标签添加背景色
+- **属性彩色标签** — 自动为编辑器中的多选属性标签添加notion风格背景色
 
 ### 其他
 
@@ -53,9 +55,9 @@
 
 ## 安装
 
-### Obsidian 社区插件（计划中）
+### Obsidian 社区插件（审核中）
 
-当前还未正式进入 Obsidian 社区插件列表，请先使用下方手动安装方式。
+当前 Obsidian 社区插件上架审核中，请先使用下方手动安装方式。
 
 ### 手动安装
 
@@ -108,13 +110,15 @@ npm test          # 运行测试
 
 A clean Obsidian dashboard plugin — see a day of your work in Obsidian at a glance.
 
-This plugin is the base edition of Aiob LifeOS (not yet released). It writes to Markdown through your daily note flow for quick memos, todos, and similar capture, and does not include advanced features such as Timeline, Insights, Time Tracking, Habit Tracker, or AI Assistant.
+Quickly capture memos and todos, written as Markdown under configured headings in your daily note.
+
+This plugin is the base edition of Aiob LifeOS (not yet released) and does not include advanced features such as Timeline, Insights, Time Tracking, Habit Tracker, or AI Assistant.
 
 ## Features
 
 ### Dashboard
 
-- **Custom Banner** — Drag to reposition background image, click to edit vault display name
+- **Custom Banner** — Right-click to add a banner image, drag to reposition
 - **Daily Progress Bars** — Today / This Week / This Month / This Year with visual segments
 - **Stats Overview** — Live word count, todo progress, memo count, notes created today
 - **Sidebar + Main View** — Works as a compact sidebar panel or a full-width tab
@@ -123,7 +127,7 @@ This plugin is the base edition of Aiob LifeOS (not yet released). It writes to 
 
 - Capture fleeting thoughts instantly, saved to your daily note with timestamps
 - Supports `[[wikilinks]]` with inline preview and suggestions
-- Drag-and-drop file attachments
+- Attach files
 - Recent memos displayed below with full Markdown rendering
 - Edit and delete via right-click context menu
 
@@ -140,14 +144,14 @@ This plugin is the base edition of Aiob LifeOS (not yet released). It writes to 
 
 ### Channels
 
-- **Quick Access Grid** — Pin your most-used folders/files as channel cards
+- **Quick Access Grid** — Pin your most-used bases, folders, or files as channel cards
 - Fully configurable via settings — add, remove, reorder, custom icons
 
 ### File Explorer Enhancements
 
-- **Folder & File Colorizer** — Right-click any folder or file in the explorer to set custom background and text colors; persists across restarts
+- **Folder & File Colorizer** — Right-click any folder or file in the explorer to set custom background and text colors
 - **Folder Stats** — Display file count and total word count next to each folder name
-- **Frontmatter Tag Colorizer** — Auto-color multi-select property pills in the editor
+- **Frontmatter Tag Colorizer** — Auto-apply Notion-style background colors to multi-select property pills in the editor
 
 ### Other
 
@@ -157,9 +161,9 @@ This plugin is the base edition of Aiob LifeOS (not yet released). It writes to 
 
 ## Installation
 
-### Obsidian Community Plugins (Planned)
+### Obsidian Community Plugins (Under review)
 
-This plugin is not yet available in the Obsidian Community Plugins directory. Please use the manual installation method below for now.
+Submission to the Obsidian Community Plugins directory is currently under review. Please use the manual installation method below for now.
 
 ### Manual Installation
 
