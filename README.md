@@ -59,7 +59,7 @@
 
 ### 手动安装
 
-1. 从 [最新发布](https://github.com/Aioblifeos/aiob-board/releases/latest) 下载 `main.js`、`styles.css` 和 `manifest.json`
+1. 从 [最新发布](https://github.com/Aioblifeos/obsidian-aiob-board/releases/latest) 下载 `main.js`、`styles.css` 和 `manifest.json`
 2. 在库目录下创建文件夹 `your-vault/.obsidian/plugins/aiob-board/`
 3. 将三个文件放入该文件夹
 4. 重启 Obsidian，在 **设置** > **第三方插件** 中启用
@@ -67,7 +67,7 @@
 ## 使用方法
 
 - 点击侧边栏的 **Aiob** 图标打开面板
-- 使用命令面板（`Cmd/Ctrl + P`）搜索 "Aiob Board"
+- 使用命令面板（`Cmd/Ctrl + P`）搜索 "Open sidebar"、"Open main view" 或 "Quick memo"
 - 在速记输入框中输入内容，按 **回车** 保存
 - 在待办区域点击 **+** 添加新任务
 - 右键点击闪念、待办、文件夹或文件可进行操作
@@ -163,7 +163,7 @@ This plugin is not yet available in the Obsidian Community Plugins directory. Pl
 
 ### Manual Installation
 
-1. Download `main.js`, `styles.css`, and `manifest.json` from the [latest release](https://github.com/Aioblifeos/aiob-board/releases/latest)
+1. Download `main.js`, `styles.css`, and `manifest.json` from the [latest release](https://github.com/Aioblifeos/obsidian-aiob-board/releases/latest)
 2. Create a folder `your-vault/.obsidian/plugins/aiob-board/`
 3. Place the three files in that folder
 4. Restart Obsidian and enable the plugin in **Settings** > **Community Plugins**
@@ -171,7 +171,7 @@ This plugin is not yet available in the Obsidian Community Plugins directory. Pl
 ## Usage
 
 - Click the **Aiob** icon in the ribbon (left sidebar) to open the dashboard
-- Use the command palette (`Cmd/Ctrl + P`) and search "Aiob Board"
+- Use the command palette (`Cmd/Ctrl + P`) and search "Open sidebar", "Open main view", or "Quick memo"
 - Type in the memo box and press **Enter** to save a quick thought
 - Click **+** in the todo section to add a new task
 - Right-click memos, todos, folders, or files for context actions
